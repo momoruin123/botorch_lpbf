@@ -4,7 +4,7 @@ from optimization import qLogEHVI
 
 # 假设 train_X 形状为 (N, 4) -> 4个工艺参数
 train_x = torch.tensor([
-    [100, 800, 0.1, 0.08],
+    [100, 800, 0.1, 0.08],  # [power, speed, layer thickness, hatch_spacing]
     [120, 1000, 0.1, 0.10],
     [80, 900, 0.12, 0.07],
     [110, 1100, 0.1, 0.09],

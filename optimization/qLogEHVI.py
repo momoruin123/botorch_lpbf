@@ -43,12 +43,12 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
 
 def get_ref_point(train_y, slack):
     """
-        Find a reference point for hyper-volume optimization.
+    Find a reference point for hyper-volume optimization.
 
-        :param train_y: Current training targets (shape: N x M).
-        :param slack: Slack to get ref_point automatically (Shape: M)
-        :return: A reference point (shape: M).
-        """
+    :param train_y: Current training targets (shape: N x M).
+    :param slack: Slack to get ref_point automatically (Shape: M)
+    :return: A reference point (shape: M).
+    """
     ref_point = []
     for i in range(train_y.shape[1]):
         ref = train_y[:, i].max().item() + (slack[i] if isinstance(slack, list) else slack)
