@@ -50,7 +50,6 @@ for iteration in range(T):
     # 2.5 Update datasets
     X_train = torch.cat([X_train, X_next], dim=0)
     Y_train = torch.cat([Y_train, Y_next], dim=0)
-    ref_point = qLogEHVI.get_ref_point(Y_train, slack)
     # print current batch
     for i in range(batch_size):
         print(f"Candidate {i + 1}: X = {X_next[i].tolist()}, Y = {Y_next[i].tolist()}")
