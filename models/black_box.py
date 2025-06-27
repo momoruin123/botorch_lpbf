@@ -23,6 +23,6 @@ def func(x):
     y2 = 5.0 + 0.5 * w + 2.0 * h + 0.05 * (p / v)
 
     # Goal 3: Processing time ~ is inversely proportional to speed t, but positively correlated with thickness
-    y3 = 1 / v + 0.2 * t + 0.1 * h
+    y3 = (1 / v + 2 * t + 1 * h)*10
 
     return torch.stack([y1, -y2, -y3], dim=-1)

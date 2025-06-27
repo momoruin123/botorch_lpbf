@@ -19,10 +19,11 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
     """
     if ref_point is None and slack is None:
         raise ValueError("You must provide either a ref_point or a slack value to compute.")
-
+    # If no ref_point
     if ref_point is None:
         ref_point = get_ref_point(train_y, slack)
 
+    # Determine whether it is a tensor
     if not torch.is_tensor(bounds):
         bounds = torch.tensor(bounds, dtype=torch.double)
     if not torch.is_tensor(ref_point):
@@ -34,8 +35,8 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
         acq_function=acq_func,
         bounds=bounds,
         q=batch_size,
-        num_restarts=10,  # Repeat optimization times with different starting points (to prevent local optimum)
-        raw_samples=100,  # Initial random sample number (used to find initial value)
+        num_restarts=5,  # Repeat optimization times with different starting points (to prevent local optimum)
+        raw_samples=64,  # Initial random sample number (used to find initial value)
         return_best_only=True,  # Only return optimal solution
     )
     return candidate, acq_value  # suggested samples and average acq_value
@@ -46,13 +47,15 @@ def get_ref_point(train_y, slack):
     Find a reference point for hyper-volume optimization.
 
     :param train_y: Current training targets (shape: N x M).
-    :param slack: Slack to get ref_point automatically (Shape: M)
+    :param slack: Slack to get ref_point automatically (Shape: M or scaler)
     :return: A reference point (shape: M).
     """
-    ref_point = []
-    for i in range(train_y.shape[1]):
-        ref = train_y[:, i].max().item() + (slack[i] if isinstance(slack, list) else slack)
-        ref_point.append(ref)
+    if isinstance(slack, list):
+        slack_tensor = torch.tensor(slack, dtype=train_y.dtype, device=train_y.device)
+    else:
+        slack_tensor = torch.full_like(train_y[0], fill_value=slack)
+
+    ref_point = train_y.min(dim=0).values - slack_tensor
     return ref_point
 
 
