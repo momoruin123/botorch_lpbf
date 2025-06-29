@@ -23,11 +23,11 @@ bounds = bounds.to(device)
 
 # ---------- 1. Initial Samples  ---------- #
 # Initial Samples from source task
-df = pd.read_csv("D:/botorch_lpbf/data/source_task_data.csv")  # 路径可以是相对或绝对
+df = pd.read_csv("D:/botorch_lpbf/data/source_task_data.csv")
 X_train = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
 Y_train = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
 # Initial Samples from target task
-df = pd.read_csv("D:/botorch_lpbf/data/target_task_data.csv")  # 路径可以是相对或绝对
+df = pd.read_csv("D:/botorch_lpbf/data/target_task_data.csv", nrows=4)
 X_train_ = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
 Y_train_ = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
 # Merge set
@@ -35,12 +35,13 @@ X_train = torch.cat([X_train, X_train_], dim=0).to(device)
 Y_train = torch.cat([Y_train, Y_train_], dim=0).to(device)
 
 # ---------- 2. Bayesian Optimization Main Loop ---------- #
-T = 5  # BO iteration times
-batch_size = 5
+T = 10  # BO iteration times
+batch_size = 1
 hv_history = []
-slack=[0.01, 0.5, 0.5]
+slack=[0.01, 0.3, 0.5]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
+print("ref_point =", ref_point)
 ref_point = ref_point.to(device)
 hv = Hypervolume(ref_point=ref_point)
 
@@ -63,7 +64,7 @@ for iteration in range(T):
     X_next = X_next.to(device)
 
     # 2.4 Evaluate new points with a black-box function
-    Y_next = black_box.func1(X_next)
+    Y_next = black_box.func_2(X_next)
 
     # 2.5 Update datasets
     X_train = torch.cat([X_train, X_next], dim=0)
@@ -71,10 +72,6 @@ for iteration in range(T):
     # print current batch
     for i in range(batch_size):
         print(f"Candidate {i + 1}: X = {X_next[i].tolist()}, Y = {Y_next[i].tolist()}")
-
-    print("ref_point =", ref_point)
-    print("Y_train (last batch) =")
-    print(Y_train[-batch_size:])
 
     partitioning = NondominatedPartitioning(
         ref_point=ref_point,
@@ -85,14 +82,14 @@ for iteration in range(T):
     hv_history.append(hv_value)
 
 df = pd.DataFrame(hv_history, columns=["HV"])
-df.to_csv("result/warm_start_HV.csv", index=False)  # 可改路径
+df.to_csv("result/warm_start_HV.csv", index=False)
 print("✅ Save in：result/warm_start_HV.csv")
 
 plt.plot(hv_history, marker='o')
 plt.title("Hyper volume Over Iterations")
 plt.xlabel("Iteration")
 plt.ylabel("Hyper volume")
-
 plt.grid(True)
 plt.tight_layout()
+plt.savefig("result/warm_start_HV.png")
 plt.show()

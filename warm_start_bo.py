@@ -31,12 +31,13 @@ X_train = torch.cat([X_train, X_train_], dim=0)
 Y_train = torch.cat([Y_train, Y_train_], dim=0)
 
 # ---------- 2. Bayesian Optimization Main Loop ---------- #
-T = 5  # BO iteration times
-batch_size = 5
+T = 10  # BO iteration times
+batch_size = 1
 hv_history = []
-slack=[0.01, 0.5, 0.5]
+slack=[0.05, 0.5, 0.5]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
+print("ref_point =", ref_point)
 hv = Hypervolume(ref_point=ref_point)
 
 for iteration in range(T):
@@ -56,7 +57,7 @@ for iteration in range(T):
     )
 
     # 2.4 Evaluate new points with a black-box function
-    Y_next = black_box.func1(X_next)
+    Y_next = black_box.func_2(X_next)
 
     # 2.5 Update datasets
     X_train = torch.cat([X_train, X_next], dim=0)
@@ -64,10 +65,6 @@ for iteration in range(T):
     # print current batch
     for i in range(batch_size):
         print(f"Candidate {i + 1}: X = {X_next[i].tolist()}, Y = {Y_next[i].tolist()}")
-
-    print("ref_point =", ref_point)
-    print("Y_train (last batch) =")
-    print(Y_train[-batch_size:])
 
     partitioning = NondominatedPartitioning(
         ref_point=ref_point,
