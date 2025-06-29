@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from models import gp_model
 from optimization import qLogEHVI
@@ -10,37 +11,40 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 torch.manual_seed(42)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
-
 # Set parameters limit（P, v, t, h）
 bounds = torch.tensor([
     [50, 200, 0.09, 0.1],  # Upper
     [150, 1000, 0.13, 0.4]  #
 ], dtype=torch.double)
-bounds = bounds.to(device)
 
-# ---------- 1. Initial Samples ---------- #
-N_init = 16
-X_train = torch.rand(N_init, 4, device=device) * (bounds[1] - bounds[0]) + bounds[0]
-Y_train = black_box.func1(X_train.to(device))
+# ---------- 1. Initial Samples  ---------- #
+# Initial Samples from source task
+df = pd.read_csv("D:/botorch_lpbf/data/source_task_data.csv")  # 路径可以是相对或绝对
+X_train = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
+Y_train = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
+# Initial Samples from target task
+df = pd.read_csv("D:/botorch_lpbf/data/target_task_data.csv")  # 路径可以是相对或绝对
+X_train_ = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
+Y_train_ = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
+# Merge set
+X_train = torch.cat([X_train, X_train_], dim=0)
+Y_train = torch.cat([Y_train, Y_train_], dim=0)
 
 # ---------- 2. Bayesian Optimization Main Loop ---------- #
-T = 5  # BO epoch times
+T = 5  # BO iteration times
 batch_size = 5
 hv_history = []
 slack=[0.01, 0.5, 0.5]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
-ref_point = ref_point.to(device)
 hv = Hypervolume(ref_point=ref_point)
 
 for iteration in range(T):
+    torch.cuda.empty_cache()
     print(f"\n========= Iteration {iteration + 1} =========")
 
     # 2.1 Build surrogate model
     model = gp_model.build_model(X_train, Y_train)
-    model = model.to(device)
 
     # 2.3 Optimize acquisition function and get next batch
     X_next, acq_val = qLogEHVI.optimize_acq_fun(
@@ -50,7 +54,6 @@ for iteration in range(T):
         batch_size=batch_size,
         ref_point=ref_point
     )
-    X_next = X_next.to(device)
 
     # 2.4 Evaluate new points with a black-box function
     Y_next = black_box.func1(X_next)
@@ -74,10 +77,14 @@ for iteration in range(T):
     print(hv_value)
     hv_history.append(hv_value)
 
+df = pd.DataFrame(hv_history, columns=["HV"])
+df.to_csv("result/warm_start_HV.csv", index=False)  # 可改路径
+print("✅ Save in：result/warm_start_HV.csv")
+
 plt.plot(hv_history, marker='o')
-plt.title("Hypervolume Over Iterations")
+plt.title("Hyper volume Over Iterations")
 plt.xlabel("Iteration")
-plt.ylabel("Hypervolume")
+plt.ylabel("Hyper volume")
 
 plt.grid(True)
 plt.tight_layout()

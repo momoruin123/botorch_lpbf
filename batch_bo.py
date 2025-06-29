@@ -8,24 +8,24 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 matplotlib.use("TkAgg")
-torch.manual_seed(42)
+torch.manual_seed(42)  # fix random seed
 
 # Set parameters limit（P, v, t, h）
 bounds = torch.tensor([
-    [50, 200, 0.09, 0.1],  # Upper
-    [150, 1000, 0.13, 0.4]  #
+    [50, 200, 0.09, 0.1],  # Upper bounds
+    [150, 1000, 0.13, 0.4]  # Lower bounds
 ], dtype=torch.double)
 
 # ---------- 1. Initial Samples ---------- #
 N_init = 16
 X_train = torch.rand(N_init, 4) * (bounds[1] - bounds[0]) + bounds[0]
-Y_train = black_box.func(X_train)
+Y_train = black_box.func1(X_train)
 print(Y_train)
 # ---------- 2. Bayesian Optimization Main Loop ---------- #
 BO_epoch = 5  # BO epoch times
 batch_size = 5
 hv_history = []
-slack=[0.01, 0.5, 0.5]
+slack=[0.01, 0.5, 2]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
 print(ref_point)
@@ -51,7 +51,7 @@ for iteration in range(BO_epoch):
     )
 
     # 2.4 Evaluate new points with a black-box function
-    Y_next = black_box.func(X_next)
+    Y_next = black_box.func1(X_next)
 
     # 2.5 Update datasets
     X_train = torch.cat([X_train, X_next], dim=0)
