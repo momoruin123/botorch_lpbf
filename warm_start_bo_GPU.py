@@ -23,11 +23,10 @@ bounds = bounds.to(device)
 
 # ---------- 1. Initial Samples  ---------- #
 # Initial Samples from source task
-df = pd.read_csv("D:/botorch_lpbf/data/source_task_data.csv")  # 路径可以是相对或绝对
-X_train = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
+df = pd.read_csv("D:/botorch_lpbf/data/source_task_data.csv")
 Y_train = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
 # Initial Samples from target task
-df = pd.read_csv("D:/botorch_lpbf/data/target_task_data.csv")  # 路径可以是相对或绝对
+df = pd.read_csv("D:/botorch_lpbf/data/target_task_data.csv")
 X_train_ = torch.tensor(df[["P", "v", "t", "h"]].values, dtype=torch.double)
 Y_train_ = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtype=torch.double)
 # Merge set
