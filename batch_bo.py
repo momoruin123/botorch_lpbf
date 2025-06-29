@@ -25,13 +25,13 @@ print(Y_train)
 BO_epoch = 5  # BO epoch times
 batch_size = 5
 hv_history = []
-slack=[0.01, 0.5, 2]
+slack=[0.05, 0.5, 2]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
 print(ref_point)
-hv = Hypervolume(ref_point=torch.tensor(ref_point, dtype=torch.double))
+hv = Hypervolume(ref_point=ref_point)
 partitioning = NondominatedPartitioning(
-        ref_point=torch.tensor(ref_point, dtype=torch.double),
+        ref_point=ref_point,
         Y=Y_train
     )
 hv_value = hv.compute(partitioning.pareto_Y)
