@@ -5,6 +5,7 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_mll
 
 
+# ICM: Intrinsic Coregionalization Model (A methode of Kernel_based Transfer)
 def build_model(x_source, y_source, x_target, y_target):
     """
     Build a multitask Gaussian Process (GP) surrogate model.
@@ -20,36 +21,24 @@ def build_model(x_source, y_source, x_target, y_target):
     :param y_target: Y from target task
     :return: A fitted ModelListGP object containing independent GPs for each objective.
     """
-    def _prepare_data(x_s, x_t, y_s, y_t, task_id_s, task_id_t):
-        # Append task IDs
-        xs = torch.cat([x_s, torch.full((x_s.shape[0], 1), task_id_s)], dim=1)
-        xt = torch.cat([x_t, torch.full((x_t.shape[0], 1), task_id_t)], dim=1)
-        x_all = torch.cat([xs, xt], dim=0)
-
-        ys = y_s.unsqueeze(-1) if y_s.ndim == 1 else y_s
-        yt = y_t.unsqueeze(-1) if y_t.ndim == 1 else y_t
-        y_all = torch.cat([ys, yt], dim=0)
-
-        return x_all, y_all
-
     input_dim = x_source.shape[1]
-    task_dim = 1  # task ID 维度
+    target_dim = y_target.shape[1]
+    task_dim = 1  # task ID dimension
     total_input_dim = input_dim + task_dim
 
-    # 对每个目标建立一个 MultiTaskGP
+    # Create a MultiTaskGP for each  task
     models = []
-    for i in range(3):  # 对于 density, roughness, time
-        x_all, y_all = _prepare_data(
-            x_source, x_target,
-            y_source[:, i:i + 1], y_target[:, i:i + 1],
-            task_id_s=0.0, task_id_t=1.0
-        )
+    for i in range(target_dim):  # for [density, roughness, time]
+        x_source_p, y_source_p = prepare_data(x_source, y_source[:, i:i + 1], 0)
+        x_target_p, y_target_p = prepare_data(x_target, y_target[:, i:i + 1], 1)
+        x_all = torch.cat([x_source_p, x_target_p], dim=0)
+        y_all = torch.cat([y_source_p, y_target_p], dim=0)
 
         model = MultiTaskGP(
             train_X=x_all,
             train_Y=y_all,
             task_feature=-1,  # 最后一维是任务 ID
-            output_tasks= [0,1],  # 两个任务
+            output_tasks=[0, 1],  # 两个任务
             input_transform=Normalize(d=total_input_dim),
             outcome_transform=Standardize(m=1)
         )
@@ -71,5 +60,13 @@ def predict(model, test_x_target):
     """
     test_x_aug = torch.cat([test_x_target, torch.ones(test_x_target.shape[0], 1)], dim=1)
     model.eval()
-    with torch.no_grad():
+    with torch.no_grad():  # DO NOT compute gradients
         return [m.posterior(test_x_aug).mean for m in model.models]
+
+
+def prepare_data(x, y, task_id):
+    # Append task IDs
+    x_and_id = torch.cat([x, torch.full((x.shape[0], 1), task_id)], dim=1)
+    y = y.unsqueeze(-1) if y.ndim == 1 else y
+
+    return x_and_id, y

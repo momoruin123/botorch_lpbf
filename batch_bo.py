@@ -27,10 +27,10 @@ Y_train = torch.tensor(df[["Density", "Neg_Roughness", "Neg_Time"]].values, dtyp
 T = 10  # BO epoch times
 batch_size = 1
 hv_history = []
-slack=[0.01, 0.3, 0.5]
+slack = [0.01, 0.3, 0.5]
 
 ref_point = qLogEHVI.get_ref_point(Y_train, slack)
-ref_point = torch.tensor([  0.8253,  -7.0257, -19.1959], device='cuda:0', dtype=torch.float64)
+ref_point = torch.tensor([0.8253, -7.0257, -19.1959], device='cuda:0', dtype=torch.float64)
 hv = Hypervolume(ref_point=ref_point)
 
 for iteration in range(T):

@@ -37,7 +37,6 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor):
 
     # Merge models
     model = ModelListGP(model_density, model_roughness, model_time)
-
     # fitting
     mlls = [ExactMarginalLogLikelihood(m.likelihood, m) for m in model.models]
     for mll in mlls:
