@@ -18,11 +18,11 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor):
     """
 
     input_dim = train_x.shape[1]  # M
-    num_targets = train_y.shape[1]  # 应为3
+    num_targets = train_y.shape[1]  # N
 
-    assert num_targets == 3, "train_Y 应该包含3个目标（density, roughness, time）"
+    assert num_targets == 3, "train_Y includes three targets（density, roughness, time）"
 
-    # 为每个目标分别构建 GP 模型
+    # build single model for every target
     model_density = SingleTaskGP(train_x, train_y[:, 0:1],
                                  input_transform=Normalize(d=input_dim),
                                  outcome_transform=Standardize(m=1))
@@ -35,10 +35,10 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor):
                               input_transform=Normalize(d=input_dim),
                               outcome_transform=Standardize(m=1))
 
-    # 合并为多目标模型
+    # Merge models
     model = ModelListGP(model_density, model_roughness, model_time)
 
-    # 拟合每个目标模型
+    # fitting
     mlls = [ExactMarginalLogLikelihood(m.likelihood, m) for m in model.models]
     for mll in mlls:
         fit_gpytorch_mll(mll)
