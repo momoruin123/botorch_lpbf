@@ -1,6 +1,6 @@
 import pandas as pd
 import torch
-from models import gp_model
+from models import SingleTaskGP_model
 from optimization import qLogEHVI
 from models import black_box
 from botorch.utils.multi_objective.hypervolume import Hypervolume

@@ -1,6 +1,6 @@
 import pandas as pd
 import torch
-from models import gp_model
+from models import SingleTaskGP_model
 from optimization import qLogEHVI
 from models import black_box
 from botorch.utils.multi_objective.hypervolume import Hypervolume
@@ -37,7 +37,7 @@ for iteration in range(T):
     print(f"\n========= Iteration {iteration + 1} =========")
 
     # 2.1 Build surrogate model
-    model = gp_model.build_model(X_train, Y_train)
+    model = SingleTaskGP_model.build_model(X_train, Y_train)
 
     # 2.3 Optimize acquisition function and get next batch
     X_next, acq_val = qLogEHVI.optimize_acq_fun(

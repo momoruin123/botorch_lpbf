@@ -1,5 +1,5 @@
 import torch
-from models import gp_model
+from models import SingleTaskGP_model
 from optimization import qLogEHVI
 
 # 假设 train_X 形状为 (N, 4) -> 4个工艺参数

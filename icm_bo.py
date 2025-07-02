@@ -1,10 +1,10 @@
 import pandas as pd
 import torch
 from botorch.models import SingleTaskGP, ModelListGP
-
-from model import icm_model
+from botorch.models.transforms import Normalize, Standardize
+from models import icm_model
 from optimization import qLogEHVI
-from model import black_box
+from models import black_box
 from botorch.utils.multi_objective.hypervolume import Hypervolume
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
 import matplotlib
@@ -34,6 +34,7 @@ T = 10  # BO iteration times
 batch_size = 1
 hv_history = []
 slack = [0.02, 0.1, 0.3]
+input_dim = X_target.shape[1]  # M
 
 ref_point = qLogEHVI.get_ref_point(Y_target, slack)
 print("ref_point =", ref_point)
@@ -49,8 +50,8 @@ for iteration in range(T):
     target_models = []
     for m in model.models:
         model_target = SingleTaskGP(X_target, Y_target[:, i:i + 1],
-                                     input_transform=m.input_transform,
-                                     outcome_transform=m.outcome_transform)
+                                    input_transform=Normalize(d=input_dim),
+                                    outcome_transform=Standardize(m=1))
         model_target.load_state_dict(m.state_dict(), strict=False)
         target_models.append(model_target)
         i = i + 1

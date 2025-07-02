@@ -5,7 +5,7 @@ from gpytorch.mlls import ExactMarginalLogLikelihood
 from botorch.fit import fit_gpytorch_mll
 
 
-def build_model(train_x: torch.Tensor, train_y: torch.Tensor):
+def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
     """
     Build a multi-objective Gaussian Process (GP) surrogate model.
 
