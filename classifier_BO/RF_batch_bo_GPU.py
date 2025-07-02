@@ -1,13 +1,10 @@
 import pandas as pd
 import torch
 from models import SingleTaskGP_model
-import matplotlib
 from pathlib import Path
 
 from optimization import qLogEHVI
 
-
-matplotlib.use("TkAgg")
 torch.manual_seed(42)
 
 # Set parameters limit（P, v, t, h）
