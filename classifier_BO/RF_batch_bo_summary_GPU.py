@@ -35,8 +35,8 @@ def plot_fused_decision_boundary(x, y, objective, new_candidates = None) -> None
     plt.title('Fused Classification Decision Boundary (Random Forest)')
     red_patch = patches.Patch(color=plt.cm.coolwarm_r(1.0), label='Fused')  # red area
     blue_patch = patches.Patch(color=plt.cm.coolwarm_r(0.0), label='Not Fused')  # blue area
-    green_patch = patches.Patch(facecolor='green', edgecolor='k', label='Fused (objective ≥ 8.5)')
-    gray_patch = patches.Patch(facecolor='lightgray', edgecolor='k', label='Not Fused (objective < 8.5)')
+    green_patch = patches.Patch(facecolor='green', edgecolor='k', label='objective ≥ 8.5')
+    gray_patch = patches.Patch(facecolor='lightgray', edgecolor='k', label='objective < 8.5')
     plt.legend(handles=[red_patch, blue_patch, green_patch, gray_patch], loc='lower right')
     plt.grid(True)
     plt.show()
@@ -159,7 +159,8 @@ if __name__ == "__main__":
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 20
+    batch_size = 20  # the finial batch size
+    mini_batch_size = 10  # If computer is not performing well (smaller than batch_size)
     ref_point = torch.tensor([5,5,7],dtype=torch.double).to(device) # reference point for optimization
 
     # ---------- 1. Initial Samples  ---------- #
@@ -202,20 +203,21 @@ if __name__ == "__main__":
 
     # ---------- 3. Bayesian Optimization  ---------- #
     model = build_model(X, Y)  # Build GP model
-    X_next = np.empty((0, X.shape[1] + 1))
-    while len(X_next) < batch_size:
+    X_next_np = np.empty((0, X.shape[1]))
+    while len(X_next_np) < batch_size:
         X_candidates, acq_val = optimize_acq_fun(
             model=model,
             train_y=Y,
             bounds=bounds,
             ref_point=ref_point,
-            batch_size=batch_size
+            batch_size=mini_batch_size
         )
-        X_candidates = X_candidates.detach().cpu().numpy()
-        print(X_candidates)
-        # filter
-        preds = clf.predict(X_candidates[:,0:2])
+        X_candidates_np = X_candidates.detach().cpu().numpy()
+        preds = clf.predict(X_candidates_np[:,0:2])  # shape = [batch_size]
         fused_mask = preds == 1
-        X_next = X_next[fused_mask]
-
-    print(X_next)
+        fused_points = X_candidates_np[fused_mask]
+        print(fused_points)
+        X_next_np = np.vstack([X_next_np, fused_points])
+    X_next_tensor = torch.tensor(X_next_np[:,0:20], dtype=torch.double)
+    print(X_next_tensor)
+    plot_fused_decision_boundary(X_RF, Fused_Label, Objective, X_next_tensor)  # show candidates
