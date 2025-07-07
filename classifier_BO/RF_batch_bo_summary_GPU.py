@@ -16,7 +16,8 @@ from sklearn.model_selection import train_test_split
 import matplotlib.patches as patches
 from botorch.models.transforms import Normalize, Standardize
 
-def plot_fused_decision_boundary(x, y, objective, new_candidates = None) -> None:
+
+def plot_fused_decision_boundary(x, y, objective, new_candidates=None, filename="decision_boundary.png") -> None:
     x_min, x_max = x[:, 0].min() - 50, x[:, 0].max() + 50
     y_min, y_max = x[:, 1].min() - 0.15, x[:, 1].max() + 0.05
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 200),
@@ -27,7 +28,7 @@ def plot_fused_decision_boundary(x, y, objective, new_candidates = None) -> None
 
     plt.figure(figsize=(8, 6))
     plt.contourf(xx, yy, z, alpha=0.3, cmap='coolwarm_r')
-    plt.scatter(x[:, 0], x[:, 1], c=mask, edgecolor='k', cmap = ListedColormap(['lightgray', 'green']))
+    plt.scatter(x[:, 0], x[:, 1], c=mask, edgecolor='k', cmap=ListedColormap(['lightgray', 'green']))
     if new_candidates is not None:
         plt.scatter(new_candidates[:, 0], new_candidates[:, 1], c='green', marker='x', s=100, label='New Candidates')
     plt.xlabel('Power')
@@ -40,6 +41,7 @@ def plot_fused_decision_boundary(x, y, objective, new_candidates = None) -> None
     plt.legend(handles=[red_patch, blue_patch, green_patch, gray_patch], loc='lower right')
     plt.grid(True)
     plt.show()
+    plt.savefig(filename)
 
 
 def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
@@ -161,13 +163,14 @@ if __name__ == "__main__":
     # 0.2 Set BO parameters
     batch_size = 20  # the finial batch size
     mini_batch_size = 10  # If computer is not performing well (smaller than batch_size)
-    ref_point = torch.tensor([5,5,7],dtype=torch.double).to(device) # reference point for optimization
+    ref_point = torch.tensor([5, 5, 7], dtype=torch.double).to(device)  # reference point for optimization
 
     # ---------- 1. Initial Samples  ---------- #
     # Initial Samples from old tasks
     df = pd.read_csv("RF_batch_bo_summary.csv")
     X = torch.tensor(df[["power", "hatch_distance", "outline_power"]].values, dtype=torch.double).to(device)
-    Y = torch.tensor(df[["edge_clarity", "label_visibility", "surface_uniformity"]].values, dtype=torch.double).to(device)
+    Y = torch.tensor(df[["edge_clarity", "label_visibility", "surface_uniformity"]].values, dtype=torch.double).to(
+        device)
     Fused_Label = torch.tensor(df[["fused"]].values, dtype=torch.double).squeeze().cpu().numpy()
     Objective = torch.tensor(df[["objective"]].values, dtype=torch.double).squeeze().cpu().numpy()
 
@@ -175,7 +178,7 @@ if __name__ == "__main__":
     # print(X.shape, Y.shape)
 
     # ---------- 2. Random Forest Classifier  ---------- #
-    X_RF = X[:,0:2].cpu().numpy()
+    X_RF = X[:, 0:2].cpu().numpy()
     # 2.1 Split test set (test_size: Test set ratio)
     X_RF_train, X_RF_test, y_RF_train, y_RF_test = train_test_split(X_RF, Fused_Label, test_size=0.2, random_state=37)
 
@@ -213,11 +216,11 @@ if __name__ == "__main__":
             batch_size=mini_batch_size
         )
         X_candidates_np = X_candidates.detach().cpu().numpy()
-        preds = clf.predict(X_candidates_np[:,0:2])  # shape = [batch_size]
+        preds = clf.predict(X_candidates_np[:, 0:2])  # shape = [batch_size]
         fused_mask = preds == 1
         fused_points = X_candidates_np[fused_mask]
         print(fused_points)
         X_next_np = np.vstack([X_next_np, fused_points])
-    X_next_tensor = torch.tensor(X_next_np[:,0:20], dtype=torch.double)
+    X_next_tensor = torch.tensor(X_next_np[:, 0:20], dtype=torch.double)
     print(X_next_tensor)
-    plot_fused_decision_boundary(X_RF, Fused_Label, Objective, X_next_tensor)  # show candidates
+    plot_fused_decision_boundary(X_RF, Fused_Label, Objective, X_next_tensor, "Candidates")  # show candidates
