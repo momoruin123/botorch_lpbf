@@ -40,8 +40,8 @@ def plot_fused_decision_boundary(x, y, objective, new_candidates=None, filename=
     gray_patch = patches.Patch(facecolor='lightgray', edgecolor='k', label='objective < 8.5')
     plt.legend(handles=[red_patch, blue_patch, green_patch, gray_patch], loc='lower right')
     plt.grid(True)
-    plt.show()
     plt.savefig(filename)
+    plt.show()
 
 
 def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
