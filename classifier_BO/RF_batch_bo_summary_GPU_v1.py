@@ -58,7 +58,7 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
     input_dim = train_x.shape[1]  # M
     num_targets = train_y.shape[1]  # N
 
-    assert num_targets == 3  # train_Y includes three targets
+    assert num_targets == 4  # train_Y includes three targets
 
     # build single model for every target
     models = []
@@ -184,8 +184,9 @@ if __name__ == "__main__":
     # Initial Samples from old tasks
     df = pd.read_csv("RF_batch_bo_summary.csv")
     X = torch.tensor(df[["power", "hatch_distance", "outline_power"]].values, dtype=torch.double).to(device)
-    Y = torch.tensor(df[["edge_clarity", "label_visibility", "surface_uniformity"]].values, dtype=torch.double).to(
+    Y = torch.tensor(df[["Young's modulus", "tensile strength", "Elongation","Edge measurement"]].values, dtype=torch.double).to(
         device)
+    Y[:, 3] = -Y[:, 3]
     Fused_Label = torch.tensor(df[["fused"]].values, dtype=torch.double).squeeze().cpu().numpy()
     Objective = torch.tensor(df[["objective"]].values, dtype=torch.double).squeeze().cpu().numpy()
 

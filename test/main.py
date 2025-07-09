@@ -1,6 +1,5 @@
 import torch
-from models import SingleTaskGP_model
-from optimization import qLogEHVI
+from models import SingleTaskGP_model_test
 
 # 假设 train_X 形状为 (N, 4) -> 4个工艺参数
 train_x = torch.tensor([
@@ -26,15 +25,6 @@ train_y = torch.tensor([
     [0.97, 8.7, 10.3],
 ], dtype=torch.double)
 
-model = gp_model.build_model(train_x, train_y)
 
-ref_point = [0.9, 11.0, 13.0]  # [density (min), roughness (max), time (max)]
-
-bounds = [
-    [80, 800, 0.09, 0.07],
-    [120, 1100, 0.13, 0.10]
-]
-
-sample, a = qLogEHVI.optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=ref_point)
-print(sample)
-print(a)
+model = SingleTaskGP_model_test.build_model(train_x, train_y)
+print(model)
