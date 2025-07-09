@@ -9,7 +9,6 @@ from botorch.sampling import SobolQMCNormalSampler
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
 from gpytorch import ExactMarginalLogLikelihood
 from matplotlib import pyplot as plt
-from matplotlib.colors import ListedColormap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -17,18 +16,17 @@ import matplotlib.patches as patches
 from botorch.models.transforms import Normalize, Standardize
 
 
-def plot_fused_decision_boundary(x, y, objective, new_candidates=None, filename="decision_boundary.png") -> None:
+def plot_fused_decision_boundary(x,y, new_candidates=None, filename="decision_boundary.png") -> None:
     x_min, x_max = x[:, 0].min() - 50, x[:, 0].max() + 50
     y_min, y_max = x[:, 1].min() - 0.15, x[:, 1].max() + 0.05
     xx, yy = np.meshgrid(np.linspace(x_min, x_max, 200),
                          np.linspace(y_min, y_max, 200))
     z = clf.predict(np.c_[xx.ravel(), yy.ravel()])
     z = z.reshape(xx.shape)
-    mask = objective >= 8.5
 
     plt.figure(figsize=(8, 6))
     plt.contourf(xx, yy, z, alpha=0.3, cmap='coolwarm_r')
-    plt.scatter(x[:, 0], x[:, 1], c=mask, edgecolor='k', cmap=ListedColormap(['lightgray', 'green']))
+    plt.scatter(x[:, 0], x[:, 1], c=y, edgecolor='k', cmap='coolwarm_r')
     if new_candidates is not None:
         plt.scatter(new_candidates[:, 0], new_candidates[:, 1], c='green', marker='x', s=100, label='New Candidates')
     plt.xlabel('Power')
@@ -36,9 +34,7 @@ def plot_fused_decision_boundary(x, y, objective, new_candidates=None, filename=
     plt.title('Fused Classification Decision Boundary (Random Forest)')
     red_patch = patches.Patch(color=plt.cm.coolwarm_r(1.0), label='Fused')  # red area
     blue_patch = patches.Patch(color=plt.cm.coolwarm_r(0.0), label='Not Fused')  # blue area
-    green_patch = patches.Patch(facecolor='green', edgecolor='k', label='objective ≥ 8.5')
-    gray_patch = patches.Patch(facecolor='lightgray', edgecolor='k', label='objective < 8.5')
-    plt.legend(handles=[red_patch, blue_patch, green_patch, gray_patch], loc='lower right')
+    plt.legend(handles=[red_patch, blue_patch], loc='lower right')
     plt.grid(True)
     plt.savefig(filename)
     plt.show()
@@ -58,8 +54,6 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
     input_dim = train_x.shape[1]  # M
     num_targets = train_y.shape[1]  # N
 
-    assert num_targets == 4  # train_Y includes three targets
-
     # build single model for every target
     models = []
 
@@ -72,24 +66,9 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
         )
         models.append(model_i)
 
-    # 构造联合模型
+    # Constructing a parallel model
     model = ModelListGP(*models)
-    """
-        model_density = SingleTaskGP(train_x, train_y[:, 0:1],
-                                 input_transform=Normalize(d=input_dim),
-                                 outcome_transform=Standardize(m=1))
 
-    model_roughness = SingleTaskGP(train_x, train_y[:, 1:2],
-                                   input_transform=Normalize(d=input_dim),
-                                   outcome_transform=Standardize(m=1))
-
-    model_time = SingleTaskGP(train_x, train_y[:, 2:3],
-                              input_transform=Normalize(d=input_dim),
-                              outcome_transform=Standardize(m=1))
-
-    # Merge models
-    model = ModelListGP(model_density, model_roughness, model_time)
-    """
     # fitting
     mlls = [ExactMarginalLogLikelihood(m.likelihood, m) for m in model.models]
     for mll in mlls:
@@ -187,12 +166,10 @@ if __name__ == "__main__":
     target = ["Young's modulus","tensile strength","Elongation","Edge measurement"]
     Y = torch.tensor(df[target].values, dtype=torch.double).to(
         device)
+
+    # Negate, because the default is to maximize
     Y[:, 3] = -Y[:, 3]
     Fused_Label = torch.tensor(df[["fused"]].values, dtype=torch.double).squeeze().cpu().numpy()
-    Objective = torch.tensor(df[["objective"]].values, dtype=torch.double).squeeze().cpu().numpy()
-
-    # Y = Y[:, 1:]  # only need the last three columns
-    # print(X.shape, Y.shape)
 
     # ---------- 2. Random Forest Classifier  ---------- #
     X_RF = X[:, 0:2].cpu().numpy()
@@ -219,7 +196,7 @@ if __name__ == "__main__":
     print(classification_report(y_RF_test, y_pred))
 
     # 2.4. visualization
-    plot_fused_decision_boundary(X_RF, Fused_Label, Objective)
+    plot_fused_decision_boundary(X_RF, Fused_Label)
 
     # ---------- 3. Bayesian Optimization  ---------- #
     model = build_model(X, Y)  # Build GP model
@@ -240,4 +217,4 @@ if __name__ == "__main__":
         X_next_np = np.vstack([X_next_np, fused_points])
     X_next_tensor = torch.tensor(X_next_np[:, 0:20], dtype=torch.double)
     print(X_next_tensor)
-    plot_fused_decision_boundary(X_RF, Fused_Label, Objective, X_next_tensor, "Candidates")  # show candidates
+    plot_fused_decision_boundary(X_RF, Fused_Label, X_next_tensor, "Candidates.png")  # show candidates
