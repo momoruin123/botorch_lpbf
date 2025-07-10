@@ -50,7 +50,7 @@ for iteration in range(T):
     print(f"\n========= Iteration {iteration + 1} =========")
 
     # 2.1 Build surrogate model
-    model = gp_model.build_model(X_train, Y_train)
+    model = SingleTaskGP_model.build_model(X_train, Y_train)
     model = model.to(device)
 
     # 2.3 Optimize acquisition function and get next batch

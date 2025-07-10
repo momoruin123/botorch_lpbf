@@ -45,7 +45,35 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
     return model
 
 
+def build_single_model(train_x: torch.Tensor, train_y: torch.Tensor) -> SingleTaskGP:
+    """
+    Build a single-objective Gaussian Process (GP) surrogate model.
+
+    :param train_x: Input tensor of shape (K, M), where
+                    K is the number of samples and
+                    M is the number of process parameters (e.g., power, speed, etc.).
+    :param train_y: Output tensor of shape (K, 1), where
+                    "1" means the single-objective
+    :return: A fitted SingleTaskGP model.
+    """
+    if train_y.ndim == 1:
+        train_y = train_y.unsqueeze(-1)  # Guarantee that shape of y is [N, 1]
+
+    input_dim = train_x.shape[1]  # M
+
+    # build single model for every target
+    model = SingleTaskGP(train_x, train_y,
+                         input_transform=Normalize(d=input_dim),
+                         outcome_transform=Standardize(m=1))
+    # build mll
+    mll = ExactMarginalLogLikelihood(model.likelihood, model)
+    # fitting
+    fit_gpytorch_mll(mll)
+
+    return model
+
+
 def predict(model, test_x):
     model.eval()
     with torch.no_grad():
-        return [m.posterior(test_x).mean for m in model.models]
+        return model.posterior(test_x).mean
