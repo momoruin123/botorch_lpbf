@@ -5,3 +5,4 @@ numpy~=2.1.2
 scikit-learn~=1.7.0
 torch~=2.7.1+cpu
 matplotlib~=3.10.0
+seaborn~=0.13.2
