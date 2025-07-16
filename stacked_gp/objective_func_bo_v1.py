@@ -255,17 +255,31 @@ def main():
     print(X)
     print(f"\n========= Y =========")
     print(Y)
-    print(f"\n========= HV History =========")
-    print(hv_history)
     pd.DataFrame(X.cpu().numpy()).to_csv("X_all_1.csv", index=False)
     pd.DataFrame(Y.cpu().numpy()).to_csv("Y_all_1.csv", index=False)
-    pd.DataFrame({"hyper_volume": hv_history}).to_csv("hv_1.csv", index=False)
-    plt.plot(hv_history, marker='o')
+
+    metrics_df = pd.DataFrame({
+        "hyper_volume":   hv_history,
+        "gd":            gd_history,
+        "igd":           igd_history,
+        "spacing":       spacing_history,
+        "cardinality":   cardinality_history,
+    })
+    metrics_df.to_csv("metrics_value_1.csv", index=False)
+    iterations = list(range(1, len(hv_history) + 1))
+    plt.figure(figsize=(8, 6))
+    plt.plot(iterations, hv_history,       label='Hypervolume')
+    plt.plot(iterations, gd_history,       label='GD')
+    plt.plot(iterations, igd_history,      label='IGD')
+    plt.plot(iterations, spacing_history,  label='Spacing')
+    plt.plot(iterations, cardinality_history, label='Cardinality')
     plt.xlabel("Iteration")
-    plt.ylabel("Hypervolume")
-    plt.title("Hypervolume over BO iterations")
+    plt.ylabel("Metric Value")
+    plt.title("BO Metrics over Iterations")
+    plt.legend(loc='best')
     plt.grid(True)
-    plt.savefig("hv_plot_1.png")
+    plt.savefig("metrics_value_1.png")
+    plt.close()
 
 
 pass
