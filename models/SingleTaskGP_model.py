@@ -77,3 +77,15 @@ def predict(model, test_x):
     model.eval()
     with torch.no_grad():
         return model.posterior(test_x).mean
+
+
+def predict_stacked_gp(model, test_x):
+    model.eval()
+    with torch.no_grad():
+        posterior = model.posterior(test_x)
+        mean = posterior.mean
+        # 获取方差信息
+        variance = posterior.variance  # 边际方差
+        # 或者使用后验协方差矩阵
+        # covariance_matrix = posterior.covariance_matrix
+        return mean, variance

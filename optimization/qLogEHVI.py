@@ -27,7 +27,7 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
     if not torch.is_tensor(bounds):
         bounds = torch.tensor(bounds, dtype=torch.double)
     if not torch.is_tensor(ref_point):
-        ref_point = torch.tensor(ref_point, dtype=torch.double)
+        ref_point = torch.tensor(ref_point, dtype=torch.double, device=train_y.device)
 
     acq_func = build_acq_fun(model, ref_point, train_y)
 
