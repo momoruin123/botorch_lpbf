@@ -1,8 +1,11 @@
 from botorch.acquisition.multi_objective import IdentityMCMultiOutputObjective, qLogExpectedHypervolumeImprovement
 from botorch.optim import optimize_acqf
 from botorch.sampling.normal import SobolQMCNormalSampler
+from botorch.utils.multi_objective import Hypervolume
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
+from botorch.utils.multi_objective.pareto import is_non_dominated
 import torch
+from torch import Tensor
 
 
 def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None):
@@ -89,7 +92,5 @@ def build_acq_fun(model, ref_point, train_y):
         sampler=sampler,
         objective=objective
     )
+
     return acq_func
-
-
-

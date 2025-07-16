@@ -1,9 +1,10 @@
 import torch
 import numpy as np
 from botorch.test_functions import Hartmann, Ackley
+from torch import Tensor
 
 
-def mechanical_model(x: torch.Tensor) -> np.ndarray:
+def mechanical_model(x: torch.Tensor) -> Tensor:
     """
     Simulated black-box function for LPBF laser process.
 
