@@ -83,7 +83,7 @@ for iteration in range(T):
 
 df = pd.DataFrame(hv_history, columns=["HV"])
 df.to_csv("result/warm_start_HV.csv", index=False)
-print("✅ Save in：result/warm_start_HV.csv")
+print("Save in：result/warm_start_HV.csv")
 
 plt.plot(hv_history, marker='o')
 plt.title("Hyper volume Over Iterations")

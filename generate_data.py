@@ -17,7 +17,7 @@ Y_train = black_box.func_1(X_train)
 data = torch.cat([X_train, Y_train], dim=1)
 df = pd.DataFrame(data.numpy(), columns=["P", "v", "t", "h", "Density", "Neg_Roughness", "Neg_Time"])
 df.to_csv("data/source_task_data.csv", index=False)  # 可改路径
-print("✅ Save in：data/source_task_data.csv")
+print("Save in：data/source_task_data.csv")
 
 N_init = 16
 X_train = torch.rand(N_init, 4) * (bounds[1] - bounds[0]) + bounds[0]
@@ -26,4 +26,4 @@ Y_train = black_box.func_2(X_train)
 data = torch.cat([X_train, Y_train], dim=1)
 df = pd.DataFrame(data.numpy(), columns=["P", "v", "t", "h", "Density", "Neg_Roughness", "Neg_Time"])
 df.to_csv("data/target_task_data.csv", index=False)  # 可改路径
-print("✅ Save in：data/target_task_data.csv")
+print("Save in：data/target_task_data.csv")
