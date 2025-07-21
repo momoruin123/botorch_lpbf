@@ -29,38 +29,48 @@ def mechanical_model(x: torch.Tensor) -> Tensor:
 
     N = x.shape[0]
     noise = lambda scale: scale * torch.randn(N, dtype=x.dtype, device=x.device)
-    eff_density = (0.9 * power + 0.1 * outline) / hatch  # 比例你可以根据实际调整
 
-    # --- Simulating surface properties ---
-    label_visibility = 10 * torch.exp(-((outline - 165) / 40) ** 2) + noise(1.0)
+    # --- label_visibility: peak near outline=160 ---
+    label_visibility = 10 * torch.exp(-((outline - 160) / 50) ** 2) + noise(1.0)
     label_visibility = torch.clamp(label_visibility.round(), 0, 10)
 
-    base = 10 * torch.exp(-((outline - 170) / 35) ** 2)
-    modulation = torch.exp(-8 * (hatch - 0.3) ** 2)  # 越接近 0.3 越稳定
+    # --- surface_uniformity: controlled by outline and hatch ---
+    base = 10 * torch.exp(-((outline - 170) / 50) ** 2)
+    modulation = torch.exp(-6 * (hatch - 0.3) ** 2)
     surface_uniformity = base * modulation + noise(1.0)
     surface_uniformity = torch.clamp(surface_uniformity.round(), 0, 10)
 
-    # --- Simulating mechanical properties ---
-    E_peak1 = 900 * torch.exp(-((eff_density - 800) / 150) ** 2)
-    E_peak2 = 800 * torch.exp(-((eff_density - 1600) / 200) ** 2)
+    # --- effective energy density: no divide-by-zero ---
+    eff_density = (0.6 * power + 0.4 * outline) / (hatch + 1e-4)
 
-    E = 1200 + (E_peak1 + E_peak2) + noise(30)
+    # --- Young's modulus (MPa): double peak + safe clamp ---
+    e1 = 800 * torch.exp(-((eff_density - 800) / 150) ** 2)
+    e2 = 600 * torch.exp(-((eff_density - 1600) / 200) ** 2)
+    E = 1200 + e1 + e2 + noise(30)
+    E = torch.clamp(E, 1000, 3000)
+
+    # --- tensile_strength (MPa): smooth multi-peak ---
     strength = (
             45
-            + 15 * torch.exp(-((eff_density - 1000) / 150) ** 2)
-            + 10 * torch.exp(-((eff_density - 1800) / 200) ** 2)
-            + 5 * torch.sin(eff_density * 0.01)
-            + noise(6)
+            + 10 * torch.exp(-((eff_density - 1000) / 150) ** 2)
+            + 5 * torch.exp(-((eff_density - 1800) / 200) ** 2)
+            + 5 * torch.sin((eff_density % 500) * 0.01)
+            + noise(5)
     )
-    elongation = torch.where(
-        outline < 150,
-        2.0 + 2.5 * torch.exp(-((outline - 100) / 30) ** 2),
-        2.0 + 2.5 * torch.exp(-((outline - 250) / 30) ** 2)
-    ) + noise(0.2)
+    strength = torch.clamp(strength, 30, 80)
 
-    # --- Marginal error (the smaller, the better) ---
-    edge_error = 0.6 - 0.0005 * power + 0.1 * hatch + noise(0.2)
-    edge_error = torch.clamp(edge_error, min=0.0)
+    # --- elongation (%): smooth twin peaks ---
+    elongation = (
+            2.0
+            + 2.5 * torch.exp(-((eff_density - 900) / 150) ** 2)
+            + 1.5 * torch.exp(-((eff_density - 1700) / 180) ** 2)
+            + noise(0.2)
+    )
+    elongation = torch.clamp(elongation, 2.0, 6.5)
+
+    # --- edge_error (mm): low is better, no negative ---
+    edge_error = 0.7 - 0.0006 * power + 0.12 * hatch + 0.05 * torch.sin(outline * 0.01) + noise(0.05)
+    edge_error = torch.clamp(edge_error, 0.05, 1.0)
 
     # output
     y = torch.stack([
