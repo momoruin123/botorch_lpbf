@@ -16,7 +16,9 @@ Main steps:
 Author: Maoyurun Mao
 Date: 07/16/2025
 """
-
+import sys, os
+# 把上一级目录（也就是 /content/botorch_lpbf/botorch_lpbf/.. → /content/botorch_lpbf）加入到模块搜索路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import numpy as np
 import pandas as pd

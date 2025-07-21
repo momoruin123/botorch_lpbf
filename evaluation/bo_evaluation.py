@@ -15,7 +15,7 @@ def get_hyper_volume(pareto_y: Tensor, ref_point: Tensor) -> float:
         ref_point = torch.tensor(ref_point, dtype=torch.double, device=pareto_y.device)
 
     hv = Hypervolume(ref_point=ref_point)
-    hv_value = hv.compute(pareto_y).item()  # to float
+    hv_value = hv.compute(pareto_y)  # to float
 
     return hv_value
 

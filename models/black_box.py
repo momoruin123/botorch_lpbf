@@ -29,17 +29,34 @@ def mechanical_model(x: torch.Tensor) -> Tensor:
 
     N = x.shape[0]
     noise = lambda scale: scale * torch.randn(N, dtype=x.dtype, device=x.device)
-    # --- Simulating surface properties ---
-    label_visibility = (10 * (1 - 0.005 * torch.abs(power - 150)) + noise(1.0)).round()
-    label_visibility = torch.clamp(label_visibility, 0, 10)
+    eff_density = (0.9 * power + 0.1 * outline) / hatch  # 比例你可以根据实际调整
 
-    surface_uniformity = (10 * torch.exp(-3 * (hatch - 0.3) ** 2) + noise(1.0)).round()
-    surface_uniformity = torch.clamp(surface_uniformity, 0, 10)
+    # --- Simulating surface properties ---
+    label_visibility = 10 * torch.exp(-((outline - 165) / 40) ** 2) + noise(1.0)
+    label_visibility = torch.clamp(label_visibility.round(), 0, 10)
+
+    base = 10 * torch.exp(-((outline - 170) / 35) ** 2)
+    modulation = torch.exp(-8 * (hatch - 0.3) ** 2)  # 越接近 0.3 越稳定
+    surface_uniformity = base * modulation + noise(1.0)
+    surface_uniformity = torch.clamp(surface_uniformity.round(), 0, 10)
 
     # --- Simulating mechanical properties ---
-    E = 1500 + 800 * torch.exp(-((power - 200) / 80) ** 2) * (1 - hatch) + noise(50)
-    strength = 40 + 25 * torch.sin(0.01 * outline) + noise(10)
-    elongation = 2 + 3 * torch.exp(-((outline - 150) / 60) ** 2) + noise(0.3)
+    E_peak1 = 900 * torch.exp(-((eff_density - 800) / 150) ** 2)
+    E_peak2 = 800 * torch.exp(-((eff_density - 1600) / 200) ** 2)
+
+    E = 1200 + (E_peak1 + E_peak2) + noise(30)
+    strength = (
+            45
+            + 15 * torch.exp(-((eff_density - 1000) / 150) ** 2)
+            + 10 * torch.exp(-((eff_density - 1800) / 200) ** 2)
+            + 5 * torch.sin(eff_density * 0.01)
+            + noise(6)
+    )
+    elongation = torch.where(
+        outline < 150,
+        2.0 + 2.5 * torch.exp(-((outline - 100) / 30) ** 2),
+        2.0 + 2.5 * torch.exp(-((outline - 250) / 30) ** 2)
+    ) + noise(0.2)
 
     # --- Marginal error (the smaller, the better) ---
     edge_error = 0.6 - 0.0005 * power + 0.1 * hatch + noise(0.2)
@@ -80,9 +97,10 @@ def func_a(x):
     y2 = 5.0 + 0.5 * w + 2.0 * h + 0.05 * (p / v)
 
     # Goal 3: Processing time ~ is inversely proportional to speed t, but positively correlated with thickness
-    y3 = (1 / v + 2 * t + 1 * h)*10
+    y3 = (1 / v + 2 * t + 1 * h) * 10
 
     return torch.stack([y1, -y2, -y3], dim=-1)
+
 
 def func_b(x):
     p, v, t, h = x.unbind(dim=1)
@@ -91,8 +109,9 @@ def func_b(x):
     d = torch.sqrt(p / (v * h))
     y1 = 1.0 / (1 + torch.exp(-(ev - 0.12))) * torch.exp(-0.04 * (w - d).abs())
     y2 = 6.0 + 0.4 * w + 2.2 * h + 0.06 * (p / v)
-    y3 = (1 / v + 2 * t + 2 * h)*10
+    y3 = (1 / v + 2 * t + 2 * h) * 10
     return torch.stack([y1, -y2, -y3], dim=-1)
+
 
 # Source task black box function
 def func_1(x):

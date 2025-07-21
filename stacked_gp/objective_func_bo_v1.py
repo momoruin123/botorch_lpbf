@@ -17,17 +17,17 @@ Main steps:
 Author: Maoyurun Mao
 Date: 07/16/2025
 """
-from typing import Tuple
+import sys, os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pandas as pd
 import torch
 from botorch.utils.multi_objective import is_non_dominated
 from matplotlib import pyplot as plt
-from numpy import ndarray
 from torch import Tensor
 from botorch.models import ModelListGP
 from botorch.utils.sampling import draw_sobol_samples
-
 from evaluation import bo_evaluation
 from models import SingleTaskGP_model
 from optimization import qLogEHVI
@@ -155,70 +155,30 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 20  # the finial batch size
-    mini_batch_size = 10  # If computer is not performing well (smaller than batch_size)
+    batch_size = 4  # the finial batch size
+    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
 
     # get true Pareto frontier
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)  # [1000, M]
-    mask_ref = is_non_dominated(Y_ref)
-    true_pf = Y_ref[mask_ref]  # [P, M]
+    f_ref_mecha = objective(normalize_tensor(Y_ref[:, 2:5]), weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+    f_ref_surf = objective(normalize_tensor(Y_ref[:, 0:2]), weight=[0.5, 0.5]).unsqueeze(-1)
+    Y_ref_bo = torch.cat([f_ref_mecha, f_ref_surf], dim=1)  # [1000,2]
+    mask_ref = is_non_dominated(Y_ref_bo)
+    true_pf = Y_ref_bo[mask_ref]  # [P, 2]
 
     # -------------------- 1. Initial Samples  -------------------- #
     n_init = batch_size  # 初始样本数
     X, Y = generate_initial_data(bounds=bounds, n_init=n_init, device=device)
 
-    # Read Samples data from old tasks
-    # X_target = ["power", "hatch_distance", "outline_power"]
-    # Y_target = [
-    #     "label_visibility",
-    #     "surface_uniformity",
-    #     "Young's_modulus",
-    #     "tensile_strength",
-    #     "Elongation",
-    #     "Edge_measurement"
-    # ]
-    # [X, Y] = read_data("data1.csv", X_target, Y_target, device)
-
-    # Unified optimization direction
-    # Initial data -> (N,1)
-    y_label_visibility = Y[:, 0].unsqueeze(-1)
-    y_surface_uniformity = Y[:, 1].unsqueeze(-1)
-    y_E = Y[:, 2].unsqueeze(-1)
-    y_strength = Y[:, 3].unsqueeze(-1)
-    y_elongation = Y[:, 4].unsqueeze(-1)
-    # y_edge_error = -Y[:, 5].unsqueeze(-1)
-
-    # -------------------- 2. Random Forest Classifier  -------------------- #
-    # X_RF = X[:, 0:2].cpu().numpy()
-    # clf = rf_classifier.build_rf_classifier(X_RF, Fused_Label)
-
     # -------------------- 3. Surrogate Model  -------------------- #
     n_iter = 5  # 迭代次数
     for i in range(n_iter):
         print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-        # Mechanics model
-        # Normalization
-        y_E_n = normalize_tensor(y_E)
-        y_strength_n = normalize_tensor(y_strength)
-        y_elongation_n = normalize_tensor(y_elongation)
-
         # Evaluating
-        f_mecha = objective(
-            torch.cat([y_E_n, y_strength_n, y_elongation_n], dim=1),
-            weight=[0.34, 0.33, 0.33]
-        ).unsqueeze(-1)
+        f_mecha = objective(normalize_tensor(Y[:, 2:5]), weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+        f_surface = objective(normalize_tensor(Y[:, 0:2]), weight=[0.5, 0.5]).unsqueeze(-1)
+
         gp_f_mecha = SingleTaskGP_model.build_single_model(X, f_mecha)
-
-        # Surface model
-        # Normalization
-        y_label_visibility_n = normalize_tensor(y_label_visibility)
-        y_surface_uniformity_n = normalize_tensor(y_surface_uniformity)
-
-        # Evaluating
-        f_surface = objective(
-            torch.cat([y_label_visibility_n, y_surface_uniformity_n], dim=1),
-            weight=[0.5, 0.5]
-        ).unsqueeze(-1)
         gp_f_surface = SingleTaskGP_model.build_single_model(X, f_surface)
 
         # -------------------- 4. Bayesian Optimization  -------------------- #
@@ -238,14 +198,19 @@ def main():
         X = torch.cat((X, X_next), dim=0)
         Y = torch.cat((Y, Y_next), dim=0)
 
-        # Only non-dominated frontier points
-        pareto_mask = is_non_dominated(Y)
-        pareto_y = Y[pareto_mask]
+        f_mecha = objective(normalize_tensor(Y[:, 2:5]), weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+        f_surface = objective(normalize_tensor(Y[:, 0:2]), weight=[0.5, 0.5]).unsqueeze(-1)
+        Y_bo_next = torch.cat((f_mecha, f_surface), dim=1)
+        Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
+        pareto_mask = is_non_dominated(Y_bo)
+        pareto_y = Y_bo[pareto_mask]
+
         hv = bo_evaluation.get_hyper_volume(pareto_y, ref_point)
         gd = bo_evaluation.get_gd(pareto_y, true_pf)
         igd = bo_evaluation.get_igd(pareto_y, true_pf)
         spacing = bo_evaluation.get_spacing(pareto_y)
         cardinality = bo_evaluation.get_cardinality(pareto_y)
+
         hv_history.append(hv)
         gd_history.append(gd)
         igd_history.append(igd)
@@ -259,20 +224,20 @@ def main():
     pd.DataFrame(Y.cpu().numpy()).to_csv("Y_all_1.csv", index=False)
 
     metrics_df = pd.DataFrame({
-        "hyper_volume":   hv_history,
-        "gd":            gd_history,
-        "igd":           igd_history,
-        "spacing":       spacing_history,
-        "cardinality":   cardinality_history,
+        "hyper_volume": hv_history,
+        "gd": gd_history,
+        "igd": igd_history,
+        "spacing": spacing_history,
+        "cardinality": cardinality_history,
     })
     metrics_df.to_csv("metrics_value_1.csv", index=False)
     iterations = list(range(1, len(hv_history) + 1))
     plt.figure(figsize=(8, 6))
-    plt.plot(iterations, hv_history,       label='Hypervolume')
-    plt.plot(iterations, gd_history,       label='GD')
-    plt.plot(iterations, igd_history,      label='IGD')
-    plt.plot(iterations, spacing_history,  label='Spacing')
-    plt.plot(iterations, cardinality_history, label='Cardinality')
+    plt.plot(iterations, hv_history, marker='.', label='Hypervolume')
+    plt.plot(iterations, gd_history, marker='.', label='GD')
+    plt.plot(iterations, igd_history, marker='.', label='IGD')
+    plt.plot(iterations, spacing_history, marker='.', label='Spacing')
+    plt.plot(iterations, cardinality_history, marker='.', label='Cardinality')
     plt.xlabel("Iteration")
     plt.ylabel("Metric Value")
     plt.title("BO Metrics over Iterations")
