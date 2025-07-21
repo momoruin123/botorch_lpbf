@@ -155,8 +155,8 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 4  # the finial batch size
-    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
+    batch_size = 10  # the finial batch size
+    mini_batch_size = 5  # If computer is not performing well (smaller than batch_size)
 
     # get true Pareto frontier
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)  # [1000, M]
@@ -171,7 +171,7 @@ def main():
     X, Y = generate_initial_data(bounds=bounds, n_init=n_init, device=device)
 
     # -------------------- 3. Surrogate Model  -------------------- #
-    n_iter = 5  # 迭代次数
+    n_iter = 20  # 迭代次数
     for i in range(n_iter):
         print(f"\n========= Iteration {i + 1}/{n_iter} =========")
         # Evaluating
@@ -217,11 +217,12 @@ def main():
         spacing_history.append(spacing)
         cardinality_history.append(cardinality)
     print(f"\n========= X =========")
-    print(X)
+    # print(X)
     print(f"\n========= Y =========")
-    print(Y)
-    pd.DataFrame(X.cpu().numpy()).to_csv("X_all_1.csv", index=False)
-    pd.DataFrame(Y.cpu().numpy()).to_csv("Y_all_1.csv", index=False)
+    # print(Y)
+    save_dir = '/content/drive/MyDrive'
+    pd.DataFrame(X.cpu().numpy()).to_csv(f"{save_dir}/X_all_3.csv", index=False)
+    pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_3.csv", index=False)
 
     metrics_df = pd.DataFrame({
         "hyper_volume": hv_history,
@@ -230,21 +231,36 @@ def main():
         "spacing": spacing_history,
         "cardinality": cardinality_history,
     })
-    metrics_df.to_csv("metrics_value_1.csv", index=False)
+    metrics_df.to_csv(f"{save_dir}/metrics_value_3.csv", index=False)
     iterations = list(range(1, len(hv_history) + 1))
     plt.figure(figsize=(8, 6))
-    plt.plot(iterations, hv_history, marker='.', label='Hypervolume')
-    plt.plot(iterations, gd_history, marker='.', label='GD')
-    plt.plot(iterations, igd_history, marker='.', label='IGD')
-    plt.plot(iterations, spacing_history, marker='.', label='Spacing')
-    plt.plot(iterations, cardinality_history, marker='.', label='Cardinality')
-    plt.xlabel("Iteration")
-    plt.ylabel("Metric Value")
-    plt.title("BO Metrics over Iterations")
-    plt.legend(loc='best')
-    plt.grid(True)
-    plt.savefig("metrics_value_1.png")
+
+    # 左侧 Y 轴
+    ax1 = plt.gca()
+    ax1.plot(iterations, hv_history, marker='o', label='Hypervolume')
+    ax1.plot(iterations, gd_history, marker='s', label='GD')
+    ax1.plot(iterations, igd_history, marker='^', label='IGD')
+    ax1.plot(iterations, spacing_history, marker='d', label='Spacing')
+    ax1.set_xlabel("Iteration")
+    ax1.set_ylabel("Metric Value (normalized)")
+    ax1.grid(True)
+
+    # 右侧 Y 轴（共享 x 轴）
+    ax2 = ax1.twinx()
+    ax2.plot(iterations, cardinality_history, marker='x', color='black', label='Cardinality')
+    ax2.set_ylabel("Cardinality", color='black')
+    ax2.tick_params(axis='y', labelcolor='black')
+
+    # 合并图例
+    lines_1, labels_1 = ax1.get_legend_handles_labels()
+    lines_2, labels_2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
+
+    plt.title("BO Metrics over Iterations (Dual Y-axis)")
+    plt.tight_layout()
+    plt.savefig(f"{save_dir}/metrics_value_3.png")
     plt.close()
+
 
 
 pass
