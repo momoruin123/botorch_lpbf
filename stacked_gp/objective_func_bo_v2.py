@@ -253,7 +253,7 @@ def main():
     iterations = list(range(1, len(hv_history) + 1))
     plt.figure(figsize=(8, 6))
 
-    # 左侧 Y 轴
+    # left Y axis
     ax1 = plt.gca()
     ax1.plot(iterations, hv_history, marker='o', label='Hypervolume')
     ax1.plot(iterations, gd_history, marker='s', label='GD')
@@ -263,13 +263,13 @@ def main():
     ax1.set_ylabel("Metric Value (normalized)")
     ax1.grid(True)
 
-    # 右侧 Y 轴（共享 x 轴）
+    # right Y axis
     ax2 = ax1.twinx()
     ax2.plot(iterations, cardinality_history, marker='x', color='black', label='Cardinality')
     ax2.set_ylabel("Cardinality", color='black')
     ax2.tick_params(axis='y', labelcolor='black')
 
-    # 合并图例
+    # merge legend
     lines_1, labels_1 = ax1.get_legend_handles_labels()
     lines_2, labels_2 = ax2.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
