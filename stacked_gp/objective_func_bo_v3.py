@@ -1,7 +1,4 @@
 """
-v1: 剔除预测分数部分和RF部分，用于测试比较
-v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
-
 Bayesian Optimization Script for Laser Powder Bed Fusion (LPBF) Parameter Optimization.
 
 This script performs batch Bayesian optimization using both mechanical and surface quality
@@ -17,12 +14,19 @@ Main steps:
 5. Perform batch Bayesian Optimization with feasibility filtering.
 
 Author: Maoyurun Mao
-Date: 07/16/2025
+Date: 22/07/2025
 """
 
-import sys, os
+'''
+v1: 剔除预测分数部分和RF部分，用于测试比较
+v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
+v3: 预计加入
+    ·更换模型顺序，使用stackedGP训练，用于比较和v2的好坏
+'''
 
+import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 import pandas as pd
 import torch
@@ -40,12 +44,12 @@ from datetime import datetime
 
 def generate_initial_data(bounds: torch.Tensor, n_init: int, device: torch.device) -> tuple[Tensor, Tensor]:
     """
-    use Sobol 序列在给定 bounds 中生成初始样本，并用黑盒函数计算标签。
+    use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
 
     Args:
-        bounds (torch.Tensor): shape [2, d]，下限和上限
-        n_init (int): 初始样本数量
-        device (torch.device): 使用的设备
+        bounds (torch.Tensor): shape [2, d]，Lower and upper
+        n_init (int): number of initial samples
+        device (torch.device): Device used for computation
 
     Returns:
         Tuple of tensors: (X_init, Y_init)
@@ -293,3 +297,4 @@ def main():
 pass
 if __name__ == "__main__":
     main()
+

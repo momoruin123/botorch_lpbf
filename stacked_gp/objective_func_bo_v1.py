@@ -1,5 +1,5 @@
 """
-剔除预测分数部分，RF部分，用于测试比较
+v1: 剔除预测分数部分，RF部分，用于测试比较
 Bayesian Optimization Script for Laser Powder Bed Fusion (LPBF) Parameter Optimization.
 
 This script performs batch Bayesian optimization using both mechanical and surface quality
