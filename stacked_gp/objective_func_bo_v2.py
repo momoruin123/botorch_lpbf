@@ -216,6 +216,7 @@ def main():
         Y_next = black_box.mechanical_model(X_next)
         X = torch.cat((X, X_next), dim=0)
         Y = torch.cat((Y, Y_next), dim=0)
+        print("Size of raw candidates")
 
         # Get objective
         norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
