@@ -1,13 +1,13 @@
-from botorch.acquisition.multi_objective import IdentityMCMultiOutputObjective, qLogExpectedHypervolumeImprovement
+from botorch.acquisition.multi_objective import IdentityMCMultiOutputObjective, qExpectedHypervolumeImprovement
 from botorch.optim import optimize_acqf
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
 import torch
-from models.stacked_gp import StackedGPModel
+
 
 def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None):
     """
-    Build a qLogExpectedHypervolumeImprovement acquisition function for multi-objective BO.
+    Build a qExpectedHypervolumeImprovement acquisition function for multi-objective BO.
 
     :param model: A fitted ModelListGP model (multi-objective surrogate).
     :param train_y: Current training targets (shape: N x M).
@@ -61,12 +61,12 @@ def get_ref_point(train_y, slack):
 
 def build_acq_fun(model, ref_point, train_y):
     """
-    Build a qLogExpectedHypervolumeImprovement acquisition function for multi-objective BO.
+    Build a qExpectedHypervolumeImprovement acquisition function for multi-objective BO.
 
     :param model: A fitted ModelListGP model (multi-objective surrogate).
     :param ref_point: Reference point for hyper-volume calculation (Tensor or list).
     :param train_y: Current training targets (shape: N x M).
-    :return: A qLogEHVI acquisition function object.
+    :return: A qEHVI acquisition function object.
     """
     if not torch.is_tensor(ref_point):
         ref_point = torch.tensor(ref_point, dtype=torch.double)
@@ -82,7 +82,7 @@ def build_acq_fun(model, ref_point, train_y):
         Y=y_pareto
     )
 
-    acq_func = qLogExpectedHypervolumeImprovement(
+    acq_func = qExpectedHypervolumeImprovement(
         model=model,
         ref_point=ref_point,
         partitioning=partitioning,

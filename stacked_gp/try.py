@@ -1,7 +1,4 @@
 """
-v1: 剔除预测分数部分和RF部分，用于测试比较
-v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
-
 Bayesian Optimization Script for Laser Powder Bed Fusion (LPBF) Parameter Optimization.
 
 This script performs batch Bayesian optimization using both mechanical and surface quality
@@ -17,11 +14,19 @@ Main steps:
 5. Perform batch Bayesian Optimization with feasibility filtering.
 
 Author: Maoyurun Mao
-Date: 07/16/2025
+Date: 22/07/2025
 """
 
-import sys, os
+'''
+v1: 剔除预测分数部分和RF部分，用于测试比较
+v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
+v3: 预计加入
+    ·更换模型顺序，使用stackedGP训练，用于比较和v2的好坏
+    
+    目前问题，单独构建了StackedGP，但是无法与SingleTaskGP合并进行多目标优化
+'''
 
+import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pandas as pd
@@ -36,16 +41,17 @@ from models import SingleTaskGP_model
 from optimization import qLogEHVI
 from models import black_box
 from datetime import datetime
+from models.stacked_gp import StackedGPModel
 
 
 def generate_initial_data(bounds: torch.Tensor, n_init: int, device: torch.device) -> tuple[Tensor, Tensor]:
     """
-    use Sobol 序列在给定 bounds 中生成初始样本，并用黑盒函数计算标签。
+    use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
 
     Args:
-        bounds (torch.Tensor): shape [2, d]，下限和上限
-        n_init (int): 初始样本数量
-        device (torch.device): 使用的设备
+        bounds (torch.Tensor): shape [2, d]，Lower and upper
+        n_init (int): number of initial samples
+        device (torch.device): Device used for computation
 
     Returns:
         Tuple of tensors: (X_init, Y_init)
@@ -96,7 +102,7 @@ def normalize_static(y: torch.Tensor, y_min: torch.Tensor, y_max: torch.Tensor) 
 
 
 def run_bo(
-        model: ModelListGP,
+        model,
         bounds: torch.Tensor,
         train_y: torch.Tensor,
         ref_point: list,
@@ -108,7 +114,7 @@ def run_bo(
     Run batch Bayesian Optimization using qLogEHVI.
 
     Args:
-        model (ModelListGP): Trained multi-objective GP model.
+        model: Trained multi-objective GP model.
         bounds (torch.Tensor): Optimization variable bounds [2, d].
         train_y (torch.Tensor): Training objectives, shape [N, 2].
         ref_point (list): Reference point in objective space, e.g., [0.5, 0.5].
@@ -163,45 +169,53 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 10  # the finial batch size
-    mini_batch_size = 5  # If computer is not performing well (smaller than batch_size)
+    batch_size = 4  # the finial batch size
+    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
 
-    # get true Pareto frontier
+    # 0.3 get true Pareto frontier
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)  # [1000, M]
     # Bounds of normalization
     y_mecha_min = Y_ref[:, 2:5].min(0).values
     y_mecha_max = Y_ref[:, 2:5].max(0).values
     y_surf_min = Y_ref[:, 0:2].min(0).values
     y_surf_max = Y_ref[:, 0:2].max(0).values
-
     f_ref_mecha_n = normalize_static(Y_ref[:, 2:5], y_mecha_min, y_mecha_max)
     f_ref_surf_n = normalize_static(Y_ref[:, 0:2], y_surf_min, y_surf_max)
     f_ref_mecha = objective(f_ref_mecha_n, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
     f_ref_surf = objective(f_ref_surf_n, weight=[0.5, 0.5]).unsqueeze(-1)
-
+    # ture pareto_solves
     Y_ref_bo = torch.cat([f_ref_mecha, f_ref_surf], dim=1)  # [1000,2]
     mask_ref = is_non_dominated(Y_ref_bo)
     true_pf = Y_ref_bo[mask_ref]  # [P, 2]
 
     # -------------------- 1. Initial Samples  -------------------- #
-    n_init = 50  # 初始样本数
+    n_init = 50  # initial samples
     X, Y = generate_initial_data(bounds=bounds, n_init=n_init, device=device)
 
-    # -------------------- 3. Surrogate Model  -------------------- #
-    n_iter = 20  # 迭代次数
+    n_iter = 1  # iterations
     for i in range(n_iter):
-        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-        # Evaluating
+        # -------------------- 2. Surrogate Model  -------------------- #
+        # 2.1 Stacked GP 1 (X[3] -> Y_mean[2],Y_var[2])
+        gp_1_lv = SingleTaskGP_model.build_single_model(X, Y[:, 0:1])
+        gp_1_su = SingleTaskGP_model.build_single_model(X, Y[:, 1:2])
+        gp_1_list = ModelListGP(gp_1_lv, gp_1_su)
+        Y_1_pred_mean, Y_1_pred_var = SingleTaskGP_model.predict_stacked_gp(gp_1_list, X)
+
+        # 2.2 Stacked GP 2 (X[3] -> f_mecha, f_surface)
+        X_2 = torch.cat((X, Y_1_pred_mean, Y_1_pred_var), dim=1)
+        # evaluationh
         norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
         norm_surf = normalize_static(Y[:, 0:2], y_surf_min, y_surf_max)
         f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
         f_surface = objective(norm_surf, weight=[0.5, 0.5]).unsqueeze(-1)
+        # build GP models
+        gp_2_mecha = SingleTaskGP_model.build_single_model(X_2, f_mecha)
+        gp_2 = StackedGPModel(gp_1_list, gp_2_mecha)
+        gp_2_surface = SingleTaskGP_model.build_single_model(X, f_surface)
 
-        gp_f_mecha = SingleTaskGP_model.build_single_model(X, f_mecha)
-        gp_f_surface = SingleTaskGP_model.build_single_model(X, f_surface)
-
+        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
         # -------------------- 4. Bayesian Optimization  -------------------- #
-        model = ModelListGP(gp_f_mecha, gp_f_surface)
+        model = StackedGPModel(gp_2, gp_2_surface)
         Y_bo = torch.cat((f_mecha, f_surface), dim=1)
         ref_point = qLogEHVI.get_ref_point(Y_bo, 0.1)
         X_next = run_bo(
@@ -216,7 +230,7 @@ def main():
         Y_next = black_box.mechanical_model(X_next)
         X = torch.cat((X, X_next), dim=0)
         Y = torch.cat((Y, Y_next), dim=0)
-        print("Size of raw candidates")
+        print("Size of raw candidates", X.size())
 
         # Get objective
         norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
@@ -288,7 +302,6 @@ def main():
     plt.tight_layout()
     plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
     plt.close()
-
 
 
 pass

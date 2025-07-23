@@ -1,7 +1,4 @@
 """
-v1: 剔除预测分数部分和RF部分，用于测试比较
-v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
-
 Bayesian Optimization Script for Laser Powder Bed Fusion (LPBF) Parameter Optimization.
 
 This script performs batch Bayesian optimization using both mechanical and surface quality
@@ -17,11 +14,17 @@ Main steps:
 5. Perform batch Bayesian Optimization with feasibility filtering.
 
 Author: Maoyurun Mao
-Date: 07/16/2025
+Date: 22/07/2025
 """
 
-import sys, os
+'''
+v1: 剔除预测分数部分和RF部分，用于测试比较
+v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
+v3: 使用stackedGP训练，但是改为单目标
+v4: 单纯的单目标
+'''
 
+import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pandas as pd
@@ -33,19 +36,20 @@ from botorch.models import ModelListGP
 from botorch.utils.sampling import draw_sobol_samples
 from evaluation import bo_evaluation
 from models import SingleTaskGP_model
-from optimization import qLogEHVI
+from optimization import qEI
 from models import black_box
 from datetime import datetime
+from models.stacked_gp import StackedGPModel
 
 
 def generate_initial_data(bounds: torch.Tensor, n_init: int, device: torch.device) -> tuple[Tensor, Tensor]:
     """
-    use Sobol 序列在给定 bounds 中生成初始样本，并用黑盒函数计算标签。
+    use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
 
     Args:
-        bounds (torch.Tensor): shape [2, d]，下限和上限
-        n_init (int): 初始样本数量
-        device (torch.device): 使用的设备
+        bounds (torch.Tensor): shape [2, d]，Lower and upper
+        n_init (int): number of initial samples
+        device (torch.device): Device used for computation
 
     Returns:
         Tuple of tensors: (X_init, Y_init)
@@ -96,10 +100,9 @@ def normalize_static(y: torch.Tensor, y_min: torch.Tensor, y_max: torch.Tensor) 
 
 
 def run_bo(
-        model: ModelListGP,
+        model,
         bounds: torch.Tensor,
         train_y: torch.Tensor,
-        ref_point: list,
         batch_size: int,
         mini_batch_size: int,
         device: torch.device
@@ -108,7 +111,7 @@ def run_bo(
     Run batch Bayesian Optimization using qLogEHVI.
 
     Args:
-        model (ModelListGP): Trained multi-objective GP model.
+        model: Trained multi-objective GP model.
         bounds (torch.Tensor): Optimization variable bounds [2, d].
         train_y (torch.Tensor): Training objectives, shape [N, 2].
         ref_point (list): Reference point in objective space, e.g., [0.5, 0.5].
@@ -123,11 +126,10 @@ def run_bo(
     iteration = 0
 
     while X_next_tensor.shape[0] < batch_size:
-        X_candidates, acq_val = qLogEHVI.optimize_acq_fun(
+        X_candidates, acq_val = qEI.optimize_acq_fun(
             model=model,
             train_y=train_y,
             bounds=bounds,
-            ref_point=ref_point,
             batch_size=mini_batch_size
         )
         X_next_tensor = torch.cat((X_next_tensor, X_candidates), dim=0)
@@ -145,15 +147,12 @@ def read_data(filename, x_target: list, y_target: list, device: torch.device) ->
 
 def main():
     # matplotlib.use("TkAgg")  # Fix compatibility issues between matplotlib and botorch
-    # torch.manual_seed(42)   # Fixed random seed to reproduce results (Default: negative)
+    torch.manual_seed(42)   # Fixed random seed to reproduce results (Default: negative)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    hv_history = []  # log of Hyper volume
-    gd_history = []  # # log of Hyper volume
-    igd_history = []
-    spacing_history = []
-    cardinality_history = []
+    best_so_far = []  # log of Hyper volume
+    simple_regret = []  # # log of Hyper volume
     # -------------------- 0. Initialization  -------------------- #
     # 0.1 Set constance and Hyper parameters
     # Set parameters limit（Power, Hatch_distance）
@@ -163,52 +162,37 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 10  # the finial batch size
-    mini_batch_size = 5  # If computer is not performing well (smaller than batch_size)
+    batch_size = 4  # the finial batch size
+    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
 
-    # get true Pareto frontier
-    X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)  # [1000, M]
+    # 0.3 get best value
+    X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)
     # Bounds of normalization
     y_mecha_min = Y_ref[:, 2:5].min(0).values
     y_mecha_max = Y_ref[:, 2:5].max(0).values
-    y_surf_min = Y_ref[:, 0:2].min(0).values
-    y_surf_max = Y_ref[:, 0:2].max(0).values
-
     f_ref_mecha_n = normalize_static(Y_ref[:, 2:5], y_mecha_min, y_mecha_max)
-    f_ref_surf_n = normalize_static(Y_ref[:, 0:2], y_surf_min, y_surf_max)
     f_ref_mecha = objective(f_ref_mecha_n, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-    f_ref_surf = objective(f_ref_surf_n, weight=[0.5, 0.5]).unsqueeze(-1)
 
-    Y_ref_bo = torch.cat([f_ref_mecha, f_ref_surf], dim=1)  # [1000,2]
-    mask_ref = is_non_dominated(Y_ref_bo)
-    true_pf = Y_ref_bo[mask_ref]  # [P, 2]
-
+    # best value
+    bv = max(f_ref_mecha)
+    print(bv)
     # -------------------- 1. Initial Samples  -------------------- #
-    n_init = 50  # 初始样本数
+    n_init = 50  # initial samples
     X, Y = generate_initial_data(bounds=bounds, n_init=n_init, device=device)
 
-    # -------------------- 3. Surrogate Model  -------------------- #
-    n_iter = 20  # 迭代次数
+    n_iter = 20  # iterations
     for i in range(n_iter):
-        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-        # Evaluating
+        # -------------------- 2. Surrogate Model  -------------------- #
+        # Build GP 2 (X[3] -> Y[1])
         norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        norm_surf = normalize_static(Y[:, 0:2], y_surf_min, y_surf_max)
         f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        f_surface = objective(norm_surf, weight=[0.5, 0.5]).unsqueeze(-1)
-
-        gp_f_mecha = SingleTaskGP_model.build_single_model(X, f_mecha)
-        gp_f_surface = SingleTaskGP_model.build_single_model(X, f_surface)
-
-        # -------------------- 4. Bayesian Optimization  -------------------- #
-        model = ModelListGP(gp_f_mecha, gp_f_surface)
-        Y_bo = torch.cat((f_mecha, f_surface), dim=1)
-        ref_point = qLogEHVI.get_ref_point(Y_bo, 0.1)
+        gp_2 = SingleTaskGP_model.build_single_model(X, f_mecha)
+        model = gp_2
+        Y_bo = f_mecha
         X_next = run_bo(
             model=model,
             bounds=bounds,
             train_y=Y_bo,
-            ref_point=ref_point,
             batch_size=batch_size,
             mini_batch_size=mini_batch_size,
             device=device
@@ -216,79 +200,56 @@ def main():
         Y_next = black_box.mechanical_model(X_next)
         X = torch.cat((X, X_next), dim=0)
         Y = torch.cat((Y, Y_next), dim=0)
-        print("Size of raw candidates")
+        # print("Size of raw candidates", X.size())
 
         # Get objective
         norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        norm_surf = normalize_static(Y[:, 0:2], y_surf_min, y_surf_max)
         f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        f_surface = objective(norm_surf, weight=[0.5, 0.5]).unsqueeze(-1)
-        # Filter and get pareto solves
-        Y_bo_next = torch.cat((f_mecha, f_surface), dim=1)
+        Y_bo_next = f_mecha
         Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
-        pareto_mask = is_non_dominated(Y_bo)
-        pareto_y = Y_bo[pareto_mask]
-        print(pareto_y.double())
+        # print(Y_bo.double())
 
         # Evaluation
-        hv = bo_evaluation.get_hyper_volume(pareto_y, ref_point)
-        gd = bo_evaluation.get_gd(pareto_y, true_pf)
-        igd = bo_evaluation.get_igd(pareto_y, true_pf)
-        spacing = bo_evaluation.get_spacing(pareto_y)
-        cardinality = bo_evaluation.get_cardinality(pareto_y)
+        bsf = max(Y_bo)
+        sr = bv - bsf
         # Log
-        hv_history.append(hv)
-        gd_history.append(gd)
-        igd_history.append(igd)
-        spacing_history.append(spacing)
-        cardinality_history.append(cardinality)
+        best_so_far.append(bsf.item())
+        simple_regret.append(sr.item())
 
-    print(f"\n========= X =========")
+    # print(f"\n========= X =========")
     # print(X)
-    print(f"\n========= Y =========")
+    # print(f"\n========= Y =========")
     # print(Y)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_dir = '/content/drive/MyDrive'
-    pd.DataFrame(X.cpu().numpy()).to_csv(f"{save_dir}/X_all_{timestamp}.csv", index=False)
-    pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
+
+    # save_dir = '/content/drive/MyDrive'
+    # pd.DataFrame(X.cpu().numpy()).to_csv(f"{save_dir}/X_all_{timestamp}.csv", index=False)
+    # pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
+    pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
+    pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
 
     metrics_df = pd.DataFrame({
-        "hyper_volume": hv_history,
-        "gd": gd_history,
-        "igd": igd_history,
-        "spacing": spacing_history,
-        "cardinality": cardinality_history,
+        "best_so_far": best_so_far,
+        "simple_regret": simple_regret,
     })
-    metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
-    iterations = list(range(1, len(hv_history) + 1))
+    # metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
+    metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
+    iterations = list(range(1, len(best_so_far) + 1))
     plt.figure(figsize=(8, 6))
 
     # left Y axis
     ax1 = plt.gca()
-    ax1.plot(iterations, hv_history, marker='o', label='Hypervolume')
-    ax1.plot(iterations, gd_history, marker='s', label='GD')
-    ax1.plot(iterations, igd_history, marker='^', label='IGD')
-    ax1.plot(iterations, spacing_history, marker='d', label='Spacing')
+    ax1.plot(iterations, best_so_far, marker='o', label='best_so_far')
+    ax1.plot(iterations, simple_regret, marker='s', label='simple_regret')
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Metric Value (normalized)")
+    ax1.legend()
     ax1.grid(True)
-
-    # right Y axis
-    ax2 = ax1.twinx()
-    ax2.plot(iterations, cardinality_history, marker='x', color='black', label='Cardinality')
-    ax2.set_ylabel("Cardinality", color='black')
-    ax2.tick_params(axis='y', labelcolor='black')
-
-    # merge legend
-    lines_1, labels_1 = ax1.get_legend_handles_labels()
-    lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
-
     plt.title("BO Metrics over Iterations (Dual Y-axis)")
     plt.tight_layout()
-    plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
+    # plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
+    plt.savefig(f"metrics_value_{timestamp}.png")
     plt.close()
-
 
 
 pass
