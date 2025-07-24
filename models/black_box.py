@@ -4,6 +4,99 @@ from botorch.test_functions import Hartmann, Ackley
 from torch import Tensor
 
 
+def mechanical_model_1(x: torch.Tensor) -> Tensor:
+    """
+    Simulated black-box function for LPBF laser process.
+
+    Args:
+        x (np.ndarray): shape [N, 3], where columns are:
+            - power (W) in [25, 300]
+            - hatch_distance (mm) in [0.1, 0.6]
+            - outline_power (W) in [25, 300]
+
+    Returns:
+        y (np.ndarray): shape [N, 6], columns are:
+            - label_visibility [0,1]
+            - surface_uniformity [0,1]
+            - Young's_modulus (MPa)
+            - tensile_strength (MPa)
+            - Elongation (%)
+            - edge_measurement (mm)
+    """
+    power = x[:, 0]
+    hatch = x[:, 1]
+    outline = x[:, 2]
+
+    N = x.shape[0]
+    noise = lambda scale: scale * torch.randn(N, dtype=x.dtype, device=x.device)
+
+    # --- 前面部分保持不变 ---
+    label_visibility = 10 * torch.exp(-((outline - 160) / 50) ** 2) + noise(1.0)
+    label_visibility = torch.clamp(label_visibility.round(), 0, 10)
+
+    base = 10 * torch.exp(-((outline - 170) / 50) ** 2)
+    modulation = torch.exp(-6 * (hatch - 0.3) ** 2)
+    surface_uniformity = base * modulation + noise(1.0)
+    surface_uniformity = torch.clamp(surface_uniformity.round(), 0, 10)
+
+    eff_density = (0.6 * power + 0.4 * outline) / (hatch + 1e-4)
+
+    # --- 修改后的 Young's modulus (MPa) ---
+    e1 = 800 * torch.exp(-((eff_density - 800) / 150) ** 2)
+    e2 = 600 * torch.exp(-((eff_density - 1600) / 200) ** 2)
+    # 新增两项：让 E 与前面两个标签相关（系数可调）
+    E = (
+            1200
+            + e1
+            + e2
+            + 15.0 * label_visibility
+            + 10.0 * surface_uniformity
+            + noise(30)
+    )
+    E = torch.clamp(E, 1000, 3000)
+
+    # --- 修改后的 tensile_strength (MPa) ---
+    strength = (
+            45
+            + 10 * torch.exp(-((eff_density - 1000) / 150) ** 2)
+            + 5 * torch.exp(-((eff_density - 1800) / 200) ** 2)
+            + 5 * torch.sin((eff_density % 500) * 0.01)
+            # 新增标签依赖
+            + 2.0 * label_visibility
+            + 1.5 * surface_uniformity
+            + noise(5)
+    )
+    strength = torch.clamp(strength, 30, 80)
+
+    # --- 修改后的 elongation (%) ---
+    elongation = (
+            2.0
+            + 2.5 * torch.exp(-((eff_density - 900) / 150) ** 2)
+            + 1.5 * torch.exp(-((eff_density - 1700) / 180) ** 2)
+            # 新增标签依赖
+            + 0.2 * label_visibility
+            + 0.1 * surface_uniformity
+            + noise(0.2)
+    )
+    elongation = torch.clamp(elongation, 2.0, 6.5)
+
+    # --- edge_error (mm): low is better, no negative ---
+    edge_error = 0.7 - 0.0006 * power + 0.12 * hatch + 0.05 * torch.sin(outline * 0.01) + noise(0.05)
+    edge_error = torch.clamp(edge_error, 0.05, 1.0)
+
+    # output
+    y = torch.stack([
+        label_visibility,
+        surface_uniformity,
+        E,
+        strength,
+        elongation,
+        edge_error
+    ], dim=1)
+
+    return y
+
+
 def mechanical_model(x: torch.Tensor) -> Tensor:
     """
     Simulated black-box function for LPBF laser process.
