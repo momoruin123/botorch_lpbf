@@ -1,0 +1,6 @@
+1: Simple black box func
+2: Complex black box func
+3: Complex black box func, different iteration time
+4: fix normalized scale
+5: init: 10; batch: 10/5; Iteration time: 10
+6:init: 50; batch: 10/5; Iteration time: 20

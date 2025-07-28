@@ -28,12 +28,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import pandas as pd
 import torch
-from botorch.utils.multi_objective import is_non_dominated
 from matplotlib import pyplot as plt
 from torch import Tensor
 from botorch.models import ModelListGP
 from botorch.utils.sampling import draw_sobol_samples
-from evaluation import bo_evaluation
 from models import SingleTaskGP_model
 from optimization import qEI
 from models import black_box
@@ -54,7 +52,7 @@ def generate_initial_data(bounds: torch.Tensor, n_init: int, device: torch.devic
         Tuple of tensors: (X_init, Y_init)
     """
     sobol_X = draw_sobol_samples(bounds=bounds, n=n_init, q=1, seed=123).squeeze(1).to(device)
-    Y = black_box.mechanical_model(sobol_X)
+    Y = black_box.mechanical_model_1(sobol_X)
     return sobol_X, Y
 
 
@@ -146,7 +144,7 @@ def read_data(filename, x_target: list, y_target: list, device: torch.device) ->
 
 def main():
     # matplotlib.use("TkAgg")  # Fix compatibility issues between matplotlib and botorch
-    torch.manual_seed(42)   # Fixed random seed to reproduce results (Default: negative)
+    # torch.manual_seed(42)   # Fixed random seed to reproduce results (Default: negative)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
@@ -163,12 +161,14 @@ def main():
     # 0.2 Set BO parameters
     batch_size = 5  # the finial batch size
     mini_batch_size = 5  # If computer is not performing well (smaller than batch_size)
+    n_iter = 40  # iterations
 
     # 0.3 get best value
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)
     # Bounds of normalization
-    y_mecha_min = Y_ref[:, 2:5].min(0).values
-    y_mecha_max = Y_ref[:, 2:5].max(0).values
+    y_mecha_min = Y_ref[:, 2:5].min(0).values.to(device)
+    y_mecha_max = Y_ref[:, 2:5].max(0).values.to(device)
+
     f_ref_mecha_n = normalize_static(Y_ref[:, 2:5], y_mecha_min, y_mecha_max)
     f_ref_mecha = objective(f_ref_mecha_n, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
 
@@ -227,7 +227,7 @@ def main():
                       [2.5394e+02, 4.3870e-01, 1.6585e+02],
                       [3.2676e+01, 1.1300e-01, 1.0300e+02],
                       [3.8103e+01, 4.2604e-01, 2.4023e+02],
-                      [2.6352e+02, 1.2565e-01, 2.9158e+01]], dtype=torch.float64)
+                      [2.6352e+02, 1.2565e-01, 2.9158e+01]], dtype=torch.float64, device=device)
     Y = torch.tensor([[8.0000e+00, 7.0000e+00, 1.1669e+03, 5.3746e+01, 2.0000e+00, 6.9723e-01],
                       [5.0000e+00, 6.0000e+00, 1.3354e+03, 5.5044e+01, 3.6393e+00, 6.2161e-01],
                       [-0.0000e+00, 0.0000e+00, 1.1998e+03, 4.9566e+01, 2.0335e+00, 7.0683e-01],
@@ -278,9 +278,8 @@ def main():
                       [4.0000e+00, 1.0000e+00, 1.2247e+03, 5.0399e+01, 2.4294e+00, 7.1026e-01],
                       [1.0000e+00, 1.0000e+00, 1.2445e+03, 4.7873e+01, 2.1208e+00, 7.5650e-01],
                       [0.0000e+00, 0.0000e+00, 1.2590e+03, 4.1979e+01, 2.3290e+00, 6.3375e-01]],
-                     dtype=torch.float64)
+                     dtype=torch.float64, device=device)
 
-    n_iter = 50  # iterations
     for i in range(n_iter):
         print(f"\n========= Iteration {i + 1}/{n_iter} =========")
         # -------------------- 2. Surrogate Model  -------------------- #
@@ -307,7 +306,7 @@ def main():
             mini_batch_size=mini_batch_size,
             device=device
         )
-        Y_next = black_box.mechanical_model(X_next)
+        Y_next = black_box.mechanical_model_1(X_next)
         X = torch.cat((X, X_next), dim=0)
         Y = torch.cat((Y, Y_next), dim=0)
         # print("Size of raw candidates", X.size())
@@ -332,18 +331,11 @@ def main():
     # print(Y)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # save_dir = '/content/drive/MyDrive'
-    # pd.DataFrame(X.cpu().numpy()).to_csv(f"{save_dir}/X_all_{timestamp}.csv", index=False)
-    # pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
-    pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
-    pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
-
     metrics_df = pd.DataFrame({
         "best_so_far": best_so_far,
         "simple_regret": simple_regret,
     })
-    # metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
-    metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
+
     iterations = list(range(1, len(best_so_far) + 1))
     plt.figure(figsize=(8, 6))
 
@@ -353,12 +345,22 @@ def main():
     ax1.plot(iterations, simple_regret, marker='s', label='simple_regret')
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Metric Value (normalized)")
-    ax1.legend()
+    ax1.set_ylim(-0.1, 1.1)
+    ax1.legend(loc='upper left')
     ax1.grid(True)
-    plt.title("BO Metrics over Iterations (Dual Y-axis)")
+    plt.title(f"v3 batch_size={batch_size} n_iter={n_iter}")
     plt.tight_layout()
+
+    # save_dir = '/content/drive/MyDrive'
+    # pd.DataFrame(X.cpu().numpy()).to_csv(f"{save_dir}/X_all_{timestamp}.csv", index=False)
+    # pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
+    # metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
     # plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
+    pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
+    pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
+    metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
     plt.savefig(f"metrics_value_{timestamp}.png")
+
     plt.close()
 
 
