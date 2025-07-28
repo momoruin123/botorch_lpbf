@@ -1,6 +1,6 @@
 import cadquery as cq
-import cadquery as cq
 import numpy as np
+import trimesh
 
 # 加载 STEP 文件
 part = cq.importers.importStep("my_part.stp")
@@ -28,9 +28,6 @@ feature_vector = [
 ]
 
 print("几何特征向量:", feature_vector)
-
-import numpy as np
-import trimesh
 
 # STEP 文件导入
 shape = cq.importers.importStep("my_part.stp").val()
