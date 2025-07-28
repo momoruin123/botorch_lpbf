@@ -1,0 +1,2 @@
+211202: v3 batch_size = 5; with stackedGP, but no connected model
+212242: v4 batch_size = 5; normal GP, no_coorelation model
