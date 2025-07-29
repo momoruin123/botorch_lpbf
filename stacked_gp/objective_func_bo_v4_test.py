@@ -3,7 +3,7 @@ Bayesian Optimization Script for Laser Powder Bed Fusion (LPBF) Parameter Optimi
 
 This script performs batch Bayesian optimization using both mechanical and surface quality
 objectives. It integrates Gaussian Process (GP) surrogate modeling, a Random Forest
-classifier for feasibility filtering, and qLogEHVI acquisition to select promising new
+classifier for feasibility filtering, and qEI acquisition to select promising new
 parameter sets.
 
 Main steps:
@@ -14,13 +14,15 @@ Main steps:
 5. Perform batch Bayesian Optimization with feasibility filtering.
 
 Author: Maoyurun Mao
-Date: 22/07/2025
+Date: 24/07/2025
 """
+import numpy as np
 
 '''
 v1: 剔除预测分数部分和RF部分，用于测试比较
 v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
 v3: 使用stackedGP训练，但是改为单目标
+v4: 单纯的单目标
 '''
 
 import sys, os
@@ -30,13 +32,11 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 from torch import Tensor
-from botorch.models import ModelListGP
 from botorch.utils.sampling import draw_sobol_samples
 from models import SingleTaskGP_model
 from optimization import qEI
 from models import black_box
 from datetime import datetime
-from models.stacked_gp import StackedGPModel
 
 
 def generate_initial_data(bounds: torch.Tensor, n_init: int, device: torch.device) -> tuple[Tensor, Tensor]:
@@ -162,7 +162,7 @@ def main():
     batch_size = 2  # the finial batch size
     mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
     n_iter = 40  # iterations
-
+    test_iter = 100
     # 0.3 get best value
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)
     # Bounds of normalization
@@ -179,55 +179,55 @@ def main():
     # n_init = 50  # initial samples
     # X, Y = generate_initial_data(bounds=bounds, n_init=n_init, device=device)
     X = torch.tensor([[4.9819e+01, 3.9056e-01, 1.3713e+02],
-                      [2.3676e+02, 2.2315e-01, 2.0105e+02],
-                      [1.9924e+02, 4.8287e-01, 3.6274e+01],
-                      [1.4535e+02, 3.1833e-01, 2.3338e+02],
-                      [1.1722e+02, 5.5959e-01, 1.7106e+02],
-                      [1.7098e+02, 2.2621e-01, 1.0713e+02],
-                      [2.6664e+02, 4.6637e-01, 2.7197e+02],
-                      [7.9562e+01, 1.3194e-01, 7.4861e+01],
-                      [7.3856e+01, 5.1691e-01, 2.9973e+02],
-                      [2.9920e+02, 3.4751e-01, 8.1113e+01],
-                      [1.8863e+02, 3.6111e-01, 1.9433e+02],
-                      [1.0493e+02, 1.9081e-01, 1.1753e+02],
-                      [1.4501e+02, 4.3380e-01, 4.2359e+01],
-                      [2.2858e+02, 1.0227e-01, 2.6097e+02],
-                      [2.5979e+02, 5.8855e-01, 1.4770e+02],
-                      [3.4310e+01, 2.6002e-01, 2.2449e+02],
-                      [2.9017e+01, 5.7196e-01, 8.6719e+01],
-                      [2.5008e+02, 2.7660e-01, 2.8600e+02],
-                      [2.2113e+02, 4.1520e-01, 1.2320e+02],
-                      [1.3316e+02, 1.2087e-01, 1.8067e+02],
-                      [9.5360e+01, 3.7776e-01, 2.5583e+02],
-                      [1.8320e+02, 1.7416e-01, 5.6556e+01],
-                      [2.8747e+02, 5.3545e-01, 2.1942e+02],
-                      [6.6279e+01, 3.2898e-01, 1.6196e+02],
-                      [8.7160e+01, 4.4389e-01, 2.1263e+02],
-                      [2.7841e+02, 1.5442e-01, 1.3367e+02],
-                      [1.7642e+02, 5.3913e-01, 2.4490e+02],
-                      [1.2685e+02, 2.4667e-01, 3.2747e+01],
-                      [1.5726e+02, 5.0529e-01, 9.5081e+01],
-                      [2.0669e+02, 2.9592e-01, 1.7404e+02],
-                      [2.4652e+02, 4.1108e-01, 6.2742e+01],
-                      [5.5133e+01, 2.0262e-01, 2.7489e+02],
-                      [5.1407e+01, 4.8191e-01, 1.8966e+02],
-                      [2.4273e+02, 3.0367e-01, 1.1394e+02],
-                      [2.1163e+02, 3.8770e-01, 2.9499e+02],
-                      [1.6200e+02, 2.1038e-01, 7.7454e+01],
-                      [1.2205e+02, 4.6739e-01, 1.5269e+02],
-                      [1.7155e+02, 1.4655e-01, 2.2842e+02],
-                      [2.8227e+02, 5.6263e-01, 4.7291e+01],
-                      [9.0819e+01, 2.3880e-01, 2.6483e+02],
-                      [6.2553e+01, 3.5438e-01, 4.0669e+01],
-                      [2.8368e+02, 1.8191e-01, 2.3671e+02],
-                      [1.8813e+02, 5.1207e-01, 1.4159e+02],
-                      [1.0009e+02, 3.3673e-01, 2.0444e+02],
-                      [1.2836e+02, 5.9546e-01, 2.6670e+02],
-                      [2.1626e+02, 2.6873e-01, 7.0665e+01],
-                      [2.5394e+02, 4.3870e-01, 1.6585e+02],
-                      [3.2676e+01, 1.1300e-01, 1.0300e+02],
-                      [3.8103e+01, 4.2604e-01, 2.4023e+02],
-                      [2.6352e+02, 1.2565e-01, 2.9158e+01]], dtype=torch.float64, device=device)
+                [2.3676e+02, 2.2315e-01, 2.0105e+02],
+                [1.9924e+02, 4.8287e-01, 3.6274e+01],
+                [1.4535e+02, 3.1833e-01, 2.3338e+02],
+                [1.1722e+02, 5.5959e-01, 1.7106e+02],
+                [1.7098e+02, 2.2621e-01, 1.0713e+02],
+                [2.6664e+02, 4.6637e-01, 2.7197e+02],
+                [7.9562e+01, 1.3194e-01, 7.4861e+01],
+                [7.3856e+01, 5.1691e-01, 2.9973e+02],
+                [2.9920e+02, 3.4751e-01, 8.1113e+01],
+                [1.8863e+02, 3.6111e-01, 1.9433e+02],
+                [1.0493e+02, 1.9081e-01, 1.1753e+02],
+                [1.4501e+02, 4.3380e-01, 4.2359e+01],
+                [2.2858e+02, 1.0227e-01, 2.6097e+02],
+                [2.5979e+02, 5.8855e-01, 1.4770e+02],
+                [3.4310e+01, 2.6002e-01, 2.2449e+02],
+                [2.9017e+01, 5.7196e-01, 8.6719e+01],
+                [2.5008e+02, 2.7660e-01, 2.8600e+02],
+                [2.2113e+02, 4.1520e-01, 1.2320e+02],
+                [1.3316e+02, 1.2087e-01, 1.8067e+02],
+                [9.5360e+01, 3.7776e-01, 2.5583e+02],
+                [1.8320e+02, 1.7416e-01, 5.6556e+01],
+                [2.8747e+02, 5.3545e-01, 2.1942e+02],
+                [6.6279e+01, 3.2898e-01, 1.6196e+02],
+                [8.7160e+01, 4.4389e-01, 2.1263e+02],
+                [2.7841e+02, 1.5442e-01, 1.3367e+02],
+                [1.7642e+02, 5.3913e-01, 2.4490e+02],
+                [1.2685e+02, 2.4667e-01, 3.2747e+01],
+                [1.5726e+02, 5.0529e-01, 9.5081e+01],
+                [2.0669e+02, 2.9592e-01, 1.7404e+02],
+                [2.4652e+02, 4.1108e-01, 6.2742e+01],
+                [5.5133e+01, 2.0262e-01, 2.7489e+02],
+                [5.1407e+01, 4.8191e-01, 1.8966e+02],
+                [2.4273e+02, 3.0367e-01, 1.1394e+02],
+                [2.1163e+02, 3.8770e-01, 2.9499e+02],
+                [1.6200e+02, 2.1038e-01, 7.7454e+01],
+                [1.2205e+02, 4.6739e-01, 1.5269e+02],
+                [1.7155e+02, 1.4655e-01, 2.2842e+02],
+                [2.8227e+02, 5.6263e-01, 4.7291e+01],
+                [9.0819e+01, 2.3880e-01, 2.6483e+02],
+                [6.2553e+01, 3.5438e-01, 4.0669e+01],
+                [2.8368e+02, 1.8191e-01, 2.3671e+02],
+                [1.8813e+02, 5.1207e-01, 1.4159e+02],
+                [1.0009e+02, 3.3673e-01, 2.0444e+02],
+                [1.2836e+02, 5.9546e-01, 2.6670e+02],
+                [2.1626e+02, 2.6873e-01, 7.0665e+01],
+                [2.5394e+02, 4.3870e-01, 1.6585e+02],
+                [3.2676e+01, 1.1300e-01, 1.0300e+02],
+                [3.8103e+01, 4.2604e-01, 2.4023e+02],
+                [2.6352e+02, 1.2565e-01, 2.9158e+01]], dtype=torch.float64, device=device)
     Y = torch.tensor([[8.0000e+00, 7.0000e+00, 1.1669e+03, 5.3746e+01, 2.0000e+00, 6.9723e-01],
                       [5.0000e+00, 6.0000e+00, 1.3354e+03, 5.5044e+01, 3.6393e+00, 6.2161e-01],
                       [-0.0000e+00, 0.0000e+00, 1.1998e+03, 4.9566e+01, 2.0335e+00, 7.0683e-01],
@@ -279,76 +279,62 @@ def main():
                       [1.0000e+00, 1.0000e+00, 1.2445e+03, 4.7873e+01, 2.1208e+00, 7.5650e-01],
                       [0.0000e+00, 0.0000e+00, 1.2590e+03, 4.1979e+01, 2.3290e+00, 6.3375e-01]],
                      dtype=torch.float64, device=device)
+    best_so_far_sum = []
+    simple_regret_sum = []
+    for j in range(test_iter):
+        for i in range(n_iter):
+            print(f"\n========= Iteration {i + 1}/{n_iter} =========")
+            # -------------------- 2. Surrogate Model  -------------------- #
+            # Build GP 2 (X[3] -> Y[1])
+            norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
+            f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+            gp_2 = SingleTaskGP_model.build_single_model(X, f_mecha)
+            model = gp_2
+            Y_bo = f_mecha
+            X_next = run_bo(
+                model=model,
+                bounds=bounds,
+                train_y=Y_bo,
+                batch_size=batch_size,
+                mini_batch_size=mini_batch_size,
+                device=device
+            )
+            Y_next = black_box.mechanical_model_1(X_next)
+            X = torch.cat((X, X_next), dim=0)
+            Y = torch.cat((Y, Y_next), dim=0)
+            # print("Size of raw candidates", X.size())
 
-    for i in range(n_iter):
-        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-        # -------------------- 2. Surrogate Model  -------------------- #
-        # 2.1 Stacked GP 1
-        gp_1_lv = SingleTaskGP_model.build_single_model(X, Y[:, 0:1])
-        gp_1_su = SingleTaskGP_model.build_single_model(X, Y[:, 1:2])
-        gp_1_list = ModelListGP(gp_1_lv, gp_1_su)
-        Y_1_pred_mean, Y_1_pred_var = SingleTaskGP_model.predict_stacked_gp(gp_1_list, X)
+            # Get objective
+            norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
+            f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+            Y_bo_next = f_mecha
+            Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
+            # print(Y_bo.double())
 
-        # 2.2 Stacked GP 2
-        X_2 = torch.cat((X, Y_1_pred_mean, Y_1_pred_var), dim=1)
-
-        # Build GP 2 (X[7] -> Y[1])
-        norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        gp_2 = SingleTaskGP_model.build_single_model(X_2, f_mecha)
-        model = StackedGPModel(gp_1_list, gp_2)
-        Y_bo = f_mecha
-        X_next = run_bo(
-            model=model,
-            bounds=bounds,
-            train_y=Y_bo,
-            batch_size=batch_size,
-            mini_batch_size=mini_batch_size,
-            device=device
-        )
-        Y_next = black_box.mechanical_model_1(X_next)
-        X = torch.cat((X, X_next), dim=0)
-        Y = torch.cat((Y, Y_next), dim=0)
-        # print("Size of raw candidates", X.size())
-
-        # Get objective
-        norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        Y_bo_next = f_mecha
-        Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
-        # print(Y_bo.double())
-
-        # Evaluation
-        bsf = max(Y_bo)
-        sr = bv - bsf
-        # Log
-        best_so_far.append(bsf.item())
-        simple_regret.append(sr.item())
-
-    # print(f"\n========= X =========")
-    # print(X)
-    # print(f"\n========= Y =========")
-    # print(Y)
+            # Evaluation
+            bsf = max(Y_bo)
+            sr = bv - bsf
+            # Log
+            best_so_far.append(bsf.item())
+            simple_regret.append(sr.item())
+        best_so_far_sum.append(best_so_far)
+        simple_regret_sum.append(simple_regret)
+    best_so_far_mean = np.mean(np.array(best_so_far_sum), axis=0)
+    simple_regret_mean = np.mean(np.array(simple_regret_sum), axis=0)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    metrics_df = pd.DataFrame({
-        "best_so_far": best_so_far,
-        "simple_regret": simple_regret,
-    })
-
-    iterations = list(range(1, len(best_so_far) + 1))
+    iterations = list(range(1, len(best_so_far_mean) + 1))
     plt.figure(figsize=(8, 6))
 
     # left Y axis
     ax1 = plt.gca()
-    ax1.plot(iterations, best_so_far, marker='o', label='best_so_far')
-    ax1.plot(iterations, simple_regret, marker='s', label='simple_regret')
+    ax1.plot(iterations, best_so_far_mean, marker='o', label='best_so_far')
+    ax1.plot(iterations, simple_regret_mean, marker='s', label='simple_regret')
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Metric Value (normalized)")
     ax1.set_ylim(-0.1, 1.1)
     ax1.legend(loc='upper left')
     ax1.grid(True)
-    plt.title(f"v3 batch_size={batch_size} n_iter={n_iter}")
+    plt.title(f"v4 batch_size={batch_size} n_iter={n_iter}")
     plt.tight_layout()
 
     # save_dir = '/content/drive/MyDrive'
@@ -356,12 +342,12 @@ def main():
     # pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
     # metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
     # plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
-    pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
-    pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
-    metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
-    plt.savefig(f"metrics_value_{timestamp}.png")
-
+    # pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
+    # pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
+    # metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
+    plt.savefig(f"metrics_value_v4_{timestamp}.png")
     plt.close()
+
 
 
 pass

@@ -1,0 +1,8 @@
+104615: v4 batch_size: 2; i_n: 40 关联模型，普通GP结构
+085230: v4 batch_size: 2; i_n: 40 关联模型，普通GP结构
+105951: v3 batch_size: 2; i_n: 40 关联模型，stackedGP结构
+110925: v3 batch_size: 2; i_n: 40 关联模型，stackedGP结构
+091125: v3 batch_size: 2; i_n: 40 关联模型，stackedGP结构
+
+103505: v4 batch_size: 5; i_n: 40 关联模型，普通GP结构
+125509: v3 batch_size: 5; i_n: 40 关联模型，stackedGP结构

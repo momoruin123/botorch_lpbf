@@ -158,8 +158,8 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 5  # the finial batch size
-    mini_batch_size = 5  # If computer is not performing well (smaller than batch_size)
+    batch_size = 2  # the finial batch size
+    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
     n_iter = 40  # iterations
 
     # 0.3 get best value

@@ -16,6 +16,7 @@ Main steps:
 Author: Maoyurun Mao
 Date: 22/07/2025
 """
+import numpy as np
 
 '''
 v1: 剔除预测分数部分和RF部分，用于测试比较
@@ -162,7 +163,7 @@ def main():
     batch_size = 2  # the finial batch size
     mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
     n_iter = 40  # iterations
-
+    test_iter = 100
     # 0.3 get best value
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)
     # Bounds of normalization
@@ -279,70 +280,66 @@ def main():
                       [1.0000e+00, 1.0000e+00, 1.2445e+03, 4.7873e+01, 2.1208e+00, 7.5650e-01],
                       [0.0000e+00, 0.0000e+00, 1.2590e+03, 4.1979e+01, 2.3290e+00, 6.3375e-01]],
                      dtype=torch.float64, device=device)
+    best_so_far_sum = []
+    simple_regret_sum = []
 
-    for i in range(n_iter):
-        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-        # -------------------- 2. Surrogate Model  -------------------- #
-        # 2.1 Stacked GP 1
-        gp_1_lv = SingleTaskGP_model.build_single_model(X, Y[:, 0:1])
-        gp_1_su = SingleTaskGP_model.build_single_model(X, Y[:, 1:2])
-        gp_1_list = ModelListGP(gp_1_lv, gp_1_su)
-        Y_1_pred_mean, Y_1_pred_var = SingleTaskGP_model.predict_stacked_gp(gp_1_list, X)
+    for j in range(test_iter):
+        print(f"\n========= Iteration {j + 1}/{test_iter} =========")
+        for i in range(n_iter):
+            # -------------------- 2. Surrogate Model  -------------------- #
+            # 2.1 Stacked GP 1
+            gp_1_lv = SingleTaskGP_model.build_single_model(X, Y[:, 0:1])
+            gp_1_su = SingleTaskGP_model.build_single_model(X, Y[:, 1:2])
+            gp_1_list = ModelListGP(gp_1_lv, gp_1_su)
+            Y_1_pred_mean, Y_1_pred_var = SingleTaskGP_model.predict_stacked_gp(gp_1_list, X)
 
-        # 2.2 Stacked GP 2
-        X_2 = torch.cat((X, Y_1_pred_mean, Y_1_pred_var), dim=1)
+            # 2.2 Stacked GP 2
+            X_2 = torch.cat((X, Y_1_pred_mean, Y_1_pred_var), dim=1)
 
-        # Build GP 2 (X[7] -> Y[1])
-        norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        gp_2 = SingleTaskGP_model.build_single_model(X_2, f_mecha)
-        model = StackedGPModel(gp_1_list, gp_2)
-        Y_bo = f_mecha
-        X_next = run_bo(
-            model=model,
-            bounds=bounds,
-            train_y=Y_bo,
-            batch_size=batch_size,
-            mini_batch_size=mini_batch_size,
-            device=device
-        )
-        Y_next = black_box.mechanical_model_1(X_next)
-        X = torch.cat((X, X_next), dim=0)
-        Y = torch.cat((Y, Y_next), dim=0)
-        # print("Size of raw candidates", X.size())
+            # Build GP 2 (X[7] -> Y[1])
+            norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
+            f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+            gp_2 = SingleTaskGP_model.build_single_model(X_2, f_mecha)
+            model = StackedGPModel(gp_1_list, gp_2)
+            Y_bo = f_mecha
+            X_next = run_bo(
+                model=model,
+                bounds=bounds,
+                train_y=Y_bo,
+                batch_size=batch_size,
+                mini_batch_size=mini_batch_size,
+                device=device
+            )
+            Y_next = black_box.mechanical_model_1(X_next)
+            X = torch.cat((X, X_next), dim=0)
+            Y = torch.cat((Y, Y_next), dim=0)
+            # print("Size of raw candidates", X.size())
 
-        # Get objective
-        norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
-        f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
-        Y_bo_next = f_mecha
-        Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
-        # print(Y_bo.double())
+            # Get objective
+            norm_mecha = normalize_static(Y[:, 2:5], y_mecha_min, y_mecha_max)
+            f_mecha = objective(norm_mecha, weight=[0.34, 0.33, 0.33]).unsqueeze(-1)
+            Y_bo_next = f_mecha
+            Y_bo = torch.cat([Y_bo, Y_bo_next], dim=0)
+            # print(Y_bo.double())
 
-        # Evaluation
-        bsf = max(Y_bo)
-        sr = bv - bsf
-        # Log
-        best_so_far.append(bsf.item())
-        simple_regret.append(sr.item())
-
-    # print(f"\n========= X =========")
-    # print(X)
-    # print(f"\n========= Y =========")
-    # print(Y)
+            # Evaluation
+            bsf = max(Y_bo)
+            sr = bv - bsf
+            # Log
+            best_so_far.append(bsf.item())
+            simple_regret.append(sr.item())
+        best_so_far_sum.append(best_so_far)
+        simple_regret_sum.append(simple_regret)
+    best_so_far_mean = np.mean(np.array(best_so_far_sum), axis=0)
+    simple_regret_mean = np.mean(np.array(simple_regret_sum), axis=0)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    metrics_df = pd.DataFrame({
-        "best_so_far": best_so_far,
-        "simple_regret": simple_regret,
-    })
-
-    iterations = list(range(1, len(best_so_far) + 1))
+    iterations = list(range(1, len(best_so_far_mean) + 1))
     plt.figure(figsize=(8, 6))
 
     # left Y axis
     ax1 = plt.gca()
-    ax1.plot(iterations, best_so_far, marker='o', label='best_so_far')
-    ax1.plot(iterations, simple_regret, marker='s', label='simple_regret')
+    ax1.plot(iterations, best_so_far_mean, marker='o', label='best_so_far')
+    ax1.plot(iterations, simple_regret_mean, marker='s', label='simple_regret')
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Metric Value (normalized)")
     ax1.set_ylim(-0.1, 1.1)
@@ -356,13 +353,11 @@ def main():
     # pd.DataFrame(Y.cpu().numpy()).to_csv(f"{save_dir}/Y_all_{timestamp}.csv", index=False)
     # metrics_df.to_csv(f"{save_dir}/metrics_value_{timestamp}.csv", index=False)
     # plt.savefig(f"{save_dir}/metrics_value_{timestamp}.png")
-    pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
-    pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
-    metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
-    plt.savefig(f"metrics_value_{timestamp}.png")
-
+    # pd.DataFrame(X.cpu().numpy()).to_csv(f"X_all_{timestamp}.csv", index=False)
+    # pd.DataFrame(Y.cpu().numpy()).to_csv(f"Y_all_{timestamp}.csv", index=False)
+    # metrics_df.to_csv(f"metrics_value_{timestamp}.csv", index=False)
+    plt.savefig(f"metrics_value_v3_{timestamp}.png")
     plt.close()
-
 
 pass
 if __name__ == "__main__":
