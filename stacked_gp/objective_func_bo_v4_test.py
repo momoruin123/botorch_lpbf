@@ -282,6 +282,7 @@ def main():
     best_so_far_sum = []
     simple_regret_sum = []
     for j in range(test_iter):
+        print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
             # -------------------- 2. Surrogate Model  -------------------- #

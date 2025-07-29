@@ -284,8 +284,9 @@ def main():
     simple_regret_sum = []
 
     for j in range(test_iter):
-        print(f"\n========= Iteration {j + 1}/{test_iter} =========")
+        print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
+            print(f"\n========= Iteration {i + 1}/{n_iter} =========")
             # -------------------- 2. Surrogate Model  -------------------- #
             # 2.1 Stacked GP 1
             gp_1_lv = SingleTaskGP_model.build_single_model(X, Y[:, 0:1])
