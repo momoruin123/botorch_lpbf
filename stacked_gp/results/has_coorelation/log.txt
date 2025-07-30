@@ -1,6 +1,19 @@
 093849: v4 batch_size: 20; i_n: 20 关联模型，普通GP结构
 114643: v3 batch_size: 20; i_n: 20 关联模型，stackedGP结构
 
+165226: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+171751: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+184655: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+185201: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+185812: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+194343: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+194940: v4 batch_size: 15; i_n: 20 关联模型，普通GP结构
+
+173659: v3 batch_size: 15; i_n: 20 关联模型，stackedGP结构
+175157: v3 batch_size: 15; i_n: 20 关联模型，stackedGP结构
+181342: v3 batch_size: 15; i_n: 20 关联模型，stackedGP结构
+182516: v3 batch_size: 15; i_n: 20 关联模型，stackedGP结构
+
 095225: v4 batch_size: 10; i_n: 30 关联模型，普通GP结构
 121748: v3 batch_size: 10; i_n: 30 关联模型，stackedGP结构
 

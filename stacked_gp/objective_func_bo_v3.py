@@ -22,7 +22,8 @@ v1: 剔除预测分数部分和RF部分，用于测试比较
 v2: 优化图表输出，分开y轴显示，加入时间戳；固定归一化尺度
 v3: 使用stackedGP训练，但是改为单目标
 '''
-
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -159,9 +160,9 @@ def main():
     ], dtype=torch.double).to(device)
 
     # 0.2 Set BO parameters
-    batch_size = 2  # the finial batch size
-    mini_batch_size = 2  # If computer is not performing well (smaller than batch_size)
-    n_iter = 40  # iterations
+    batch_size = 15  # the finial batch size
+    mini_batch_size = 15  # If computer is not performing well (smaller than batch_size)
+    n_iter = 20  # iterations
 
     # 0.3 get best value
     X_ref, Y_ref = generate_initial_data(bounds=bounds, n_init=1000, device=device)
