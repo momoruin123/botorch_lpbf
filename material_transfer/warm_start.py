@@ -2,6 +2,7 @@
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import numpy as np
 from datetime import datetime
 from botorch.utils.multi_objective import is_non_dominated
@@ -15,6 +16,7 @@ from optimization import qLogEHVI
 from models import black_box
 import matplotlib.pyplot as plt
 import warnings
+
 
 warnings.filterwarnings("ignore", category=UserWarning, module="linear_operator.utils.interpolation")
 torch.set_default_dtype(torch.float64)
@@ -93,8 +95,8 @@ def run_bo(
             bounds=bounds,
             ref_point=ref_point,
             batch_size=mini_batch_size,
-            num_restarts=5,
-            raw_samples=64,
+            num_restarts=10,
+            raw_samples=128,
         )
         X_next_tensor = torch.cat((X_next_tensor, X_candidates), dim=0)
         iteration += 1
@@ -121,13 +123,13 @@ def main():
 
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(bounds, 100, d, device=device)
-    X_new, Y_new = generate_initial_data(bounds, 20, d, device=device)
+    X_new_init, Y_new_init = generate_initial_data(bounds, 20, d, device=device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
     batch_size = 10
-    mini_batch_size = 5
+    mini_batch_size = 2
     test_iter = 10  # Number of testing
-    n_iter = 10  # Number of iterations
+    n_iter = 20  # Number of iterations
     # Log matrix initialize (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
@@ -135,10 +137,12 @@ def main():
     spacing_history = np.zeros((test_iter, n_iter))  # log of spacing_history
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
     for j in range(test_iter):
+        X_new = X_new_init
+        Y_new = Y_new_init
         print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-            model = MultiTaskGP_model.build_model(X_old,Y_old,X_new, Y_new)  # build GP model
+            model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
             ref_point = qLogEHVI.get_ref_point(Y_new, 0.1)  # set reference point
             Y_bo = torch.cat((Y_old, Y_new), dim=0).to(device)  # merge training set
             X_next = run_bo(  # run BO
@@ -153,7 +157,7 @@ def main():
             Y_next = black_box.transfer_model_2(X_next, d)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
-            print("Size of raw candidates: {}".format(Y_next.shape))
+            # print("Size of raw candidates: {}".format(Y_next.shape))
             # Filter and get pareto solves
             pareto_mask = is_non_dominated(Y_new)
             pareto_y = Y_new[pareto_mask]
