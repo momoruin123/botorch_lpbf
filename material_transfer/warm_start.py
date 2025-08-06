@@ -1,6 +1,7 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import numpy as np
 from datetime import datetime
 from botorch.utils.multi_objective import is_non_dominated
