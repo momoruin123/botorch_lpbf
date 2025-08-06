@@ -22,7 +22,6 @@ def transfer_model_2(x: Tensor, d) -> Tensor:
     # to torch
     y = torch.tensor(y_np, dtype=x.dtype, device=x.device)
 
-
     # w = torch.rand(d, device=x.device)device
     w = torch.tensor([
         0.3367, 0.1288, 0.2345, 0.2303, -1.1229,
@@ -39,6 +38,7 @@ def transfer_model_2(x: Tensor, d) -> Tensor:
     # final combo
     y = 0.6 * y + linear_term + nonlinear_term + 0.05*torch.randn_like(y)
     return y
+
 
 def mechanical_model_1(x: torch.Tensor) -> Tensor:
     """
