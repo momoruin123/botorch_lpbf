@@ -1,0 +1,19 @@
+batch_size: 10
+mini_batch_size: 2
+test_n: 10
+iteration_n: 20
+20250806_105948: cold start with nonlinear term
+20250806_113305: warm start with nonlinear term
+
+batch_size: 10
+mini_batch_size: 5
+test_n: 10
+iteration_n: 20
+20250806_123916: warm start without nonlinear term
+
+batch_size: 10
+mini_batch_size: 2
+test_n: 1
+iteration_n: 10
+20250806_130050: warm start with nonlinear term
+

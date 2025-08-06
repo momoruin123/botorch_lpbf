@@ -34,18 +34,18 @@ def main():
     X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 2
+    batch_size = 10
     mini_batch_size = 2
     test_iter = 1  # Number of testing
-    n_iter = 1  # Number of iterations
+    n_iter = 10  # Number of iterations
     # Log matrix initialize (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
     igd_history = np.zeros((test_iter, n_iter))  # log of inverted generational distance
     spacing_history = np.zeros((test_iter, n_iter))  # log of spacing_history
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
-    X_log = torch.empty((0, 5))
-    Y_log = torch.empty((0, 2))
+    X_log = torch.empty((0, 5)).to(device)
+    Y_log = torch.empty((0, 2)).to(device)
     for j in range(test_iter):
         X_new = X_new_init
         Y_new = Y_new_init
