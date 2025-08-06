@@ -1,8 +1,44 @@
 import torch
 import numpy as np
-from botorch.test_functions import Hartmann, Ackley
 from torch import Tensor
+from pymoo.problems import get_problem
 
+
+def transfer_model_1(x: Tensor, d) -> Tensor:
+    problem = get_problem("zdt1", n_var=d)
+    # to numpy
+    x_np = x.detach().cpu().numpy()
+    y_np = problem.evaluate(x_np)
+    # to torch
+    y = torch.tensor(y_np, device=x.device)
+    return y
+
+
+def transfer_model_2(x: Tensor, d) -> Tensor:
+    problem = get_problem("zdt1", n_var=d)
+    # to numpy
+    x_np = x.detach().cpu().numpy()
+    y_np = problem.evaluate(x_np)
+    # to torch
+    y = torch.tensor(y_np, dtype=x.dtype, device=x.device)
+
+
+    # w = torch.rand(d, device=x.device)device
+    w = torch.tensor([
+        0.3367, 0.1288, 0.2345, 0.2303, -1.1229,
+        -0.1863, 2.2082, -0.6380, -0.1800, 0.0376
+    ], device=x.device)
+    w = w[0:d]
+    # linear item
+    linear_term = 0.3 * (x @ w)
+    linear_term = linear_term.unsqueeze(1).expand_as(y)
+    # nonlinear item
+    nonlinear_term = 0.2 * torch.sin(2 * torch.pi * (x[:, 0] + 0.5 * x[:, 1] - 0.3 * x[:, 2])) \
+                     + 0.1 * torch.cos(3 * torch.pi * x[:, 3])
+    nonlinear_term = nonlinear_term.unsqueeze(1).expand_as(y)
+    # final combo
+    y = 0.6 * y + linear_term + nonlinear_term + 0.05*torch.randn_like(y)
+    return y
 
 def mechanical_model_1(x: torch.Tensor) -> Tensor:
     """

@@ -149,11 +149,11 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    hv_history = []  # log of Hyper volume
-    gd_history = []  # # log of Hyper volume
-    igd_history = []
-    spacing_history = []
-    cardinality_history = []
+    hv_history = []  # log of hyper volume
+    gd_history = []  # log of generational distance
+    igd_history = []  # log of inverted generational distance
+    spacing_history = []  # log of spacing_history
+    cardinality_history = []  # log of cardinality_history
     # -------------------- 0. Initialization  -------------------- #
     # 0.1 Set constance and Hyper parameters
     # Set parameters limit（Power, Hatch_distance）

@@ -5,7 +5,7 @@ from botorch.utils.multi_objective.box_decompositions import NondominatedPartiti
 import torch
 from models.stacked_gp import StackedGPModel
 
-def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None):
+def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None, num_restarts=10, raw_samples=128):
     """
     Build a qLogExpectedHypervolumeImprovement acquisition function for multi-objective BO.
 
@@ -35,8 +35,8 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
         acq_function=acq_func,
         bounds=bounds,
         q=batch_size,
-        num_restarts=10,  # Repeat optimization times with different starting points (to prevent local optimum)
-        raw_samples=128,  # Initial random sample number (used to find initial value)
+        num_restarts=num_restarts,  # Repeat optimization times with different starting points (to prevent local optimum)
+        raw_samples=raw_samples,  # Initial random sample number (used to find initial value)
         return_best_only=True,  # Only return optimal solution
     )
     return candidate, acq_value  # suggested samples and average acq_value
@@ -56,6 +56,7 @@ def get_ref_point(train_y, slack):
         slack_tensor = torch.full_like(train_y[0], fill_value=slack)
 
     ref_point = train_y.min(dim=0).values - slack_tensor
+    ref_point = ref_point.to(train_y.device)
     return ref_point
 
 
