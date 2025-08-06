@@ -97,16 +97,17 @@ def main():
     X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device=device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
-
+    # ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
+    ref_point = [-0.5319,  0.2925]
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)
     X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 2
+    batch_size = 10
     mini_batch_size = 2
     test_iter = 1  # Number of testing
-    n_iter = 1  # Number of iterations
+    n_iter = 10  # Number of iterations
     # Log matrix initialize (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
@@ -122,7 +123,6 @@ def main():
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
             model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
-            ref_point = qLogEHVI.get_ref_point(Y_new, 0.1)  # set reference point
             Y_bo = torch.cat((Y_old, Y_new), dim=0).to(device)  # merge training set
             X_next = run_bo(  # run BO
                 model=model,

@@ -16,4 +16,6 @@ mini_batch_size: 2
 test_n: 1
 iteration_n: 10
 20250806_130050: warm start with nonlinear term
+20250806_150625: cold start with nonlinear term
+ =========================================================参考点没固定⬆
 

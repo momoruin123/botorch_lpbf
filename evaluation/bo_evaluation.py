@@ -3,7 +3,7 @@ from botorch.utils.multi_objective import Hypervolume
 from torch import Tensor
 
 
-def get_hyper_volume(pareto_y: Tensor, ref_point: Tensor) -> float:
+def get_hyper_volume(pareto_y: Tensor, ref_point) -> float:
     """
     Compute hyper-volume given training outputs and a reference point. The bigger, the better.
 
