@@ -94,12 +94,14 @@ def main():
     d = 5
     bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)  # [0,1]^d
     # 0.2 Get true pareto frontier
-    X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device=device)  # [1000, M]
+    X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
     # ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
-    ref_point = [-0.5319,  0.2925]
-    # ---------- 1. Initial Samples  ---------- #
+    ref_point = [-0.5319,  0.2925]  # nonlinear
+    # ref_point = [-0.3402,  0.3501]  # linear
+
+# ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)
     X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
 
