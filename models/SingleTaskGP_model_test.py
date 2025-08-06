@@ -31,7 +31,7 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
         )
         models.append(model_i)
 
-    # 构造联合模型
+    # build mll
     model = ModelListGP(*models)
     # fitting
     mlls = [ExactMarginalLogLikelihood(m.likelihood, m) for m in model.models]

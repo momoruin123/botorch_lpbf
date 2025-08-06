@@ -16,27 +16,20 @@ def build_model(train_x: torch.Tensor, train_y: torch.Tensor) -> ModelListGP:
                     N is the number of target metrics (e.g., density, roughness, processing time).
     :return: A fitted ModelListGP object containing independent GPs for each objective.
     """
-
     input_dim = train_x.shape[1]  # M
     num_targets = train_y.shape[1]  # N
-
-    assert num_targets == 3, "train_Y includes three targets（density, roughness, time）"
-
-    # build single model for every target
-    model_density = SingleTaskGP(train_x, train_y[:, 0:1],
-                                 input_transform=Normalize(d=input_dim),
-                                 outcome_transform=Standardize(m=1))
-
-    model_roughness = SingleTaskGP(train_x, train_y[:, 1:2],
-                                   input_transform=Normalize(d=input_dim),
-                                   outcome_transform=Standardize(m=1))
-
-    model_time = SingleTaskGP(train_x, train_y[:, 2:3],
-                              input_transform=Normalize(d=input_dim),
-                              outcome_transform=Standardize(m=1))
+    models = []
+    for i in range(num_targets):
+        model_i = SingleTaskGP(
+            train_x,
+            train_y[:, i:i+1],
+            input_transform=Normalize(d=input_dim),
+            outcome_transform=Standardize(m=1)
+        )
+        models.append(model_i)
 
     # Merge models
-    model = ModelListGP(model_density, model_roughness, model_time)
+    model = ModelListGP(*models)
     # fitting
     mlls = [ExactMarginalLogLikelihood(m.likelihood, m) for m in model.models]
     for mll in mlls:
