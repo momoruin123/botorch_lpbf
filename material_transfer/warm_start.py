@@ -31,6 +31,10 @@ def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, 
     Returns:
         Tuple of tensors: (X_init, Y_init)
     """
+    if n_init == 0:
+        sobol_x = torch.zeros((n_init, d), device=device)
+        y = torch.zeros((n_init, 2), device=device)
+        return sobol_x, y
     sobol_x = draw_sobol_samples(bounds=bounds, n=n_init, q=1, seed=123).squeeze(1).to(device)
     if model_opt == 1:
         y = black_box.transfer_model_1(sobol_x, d)

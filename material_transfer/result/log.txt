@@ -1,24 +1,44 @@
+========================linear transform========================
+======== y = 0.6 * y + 10.8 + 0.05 * torch.randn_like(y)========
+batch_size = 4
+mini_batch_size = 4
+test_iter = 1  # Number of testing
+n_iter = 20  # Number of iterations
+20250807_105121: warm start + linear transform
+ : cold start + linear transform???
+20250807_132051: embedding with 10 new samples
+embedding<warm
+
+batch_size = 10
+mini_batch_size = 5
+test_iter = 10  # Number of testing
+n_iter = 20  # Number of iterations
+20250807_110516: warm start + linear transform
+20250807_100559: cold start + linear transform
+warm < cold
+========================参考点选成了非线性点========================
+========================linear transform + linear term========================
 batch_size: 10
 mini_batch_size: 5
 test_n: 10
 iteration_n: 20
-20250806_143720: warm start WITHOUT nonlinear term
-
+20250806_143720: warm start + linear transform + linear term
+20250806_150809: cold start + linear transform + linear term
 ========================参考点选成了非线性点========================
 对第二组没影响，对第一组有影响
 batch_size: 10
 mini_batch_size: 5
 test_n: 10
 iteration_n: 20
-20250806_140309: warm start WITHOUT nonlinear term
-20250806_165602: cold start WITHOUT nonlinear term
+20250806_140309: warm start + linear transform + linear term
+20250806_165602: cold start + linear transform + linear term
 
 batch_size: 10
 mini_batch_size: 2
 test_n: 1
 iteration_n: 10
-20250806_161947: warm start with nonlinear term
-20250806_165602: cold start with nonlinear term
+20250806_161947: warm start + linear transform + linear term + nonlinear term
+20250806_165602: cold start + linear transform + linear term + nonlinear term
 
 
 ========================old 参考点没固定========================
@@ -26,19 +46,19 @@ batch_size: 10
 mini_batch_size: 2
 test_n: 10
 iteration_n: 20
-20250806_105948: cold start with nonlinear term
-20250806_113305: warm start with nonlinear term
+20250806_105948: cold start + linear transform + linear term + nonlinear term
+20250806_113305: warm start + linear transform + linear term + nonlinear term
 
 batch_size: 10
 mini_batch_size: 5
 test_n: 10
 iteration_n: 20
-20250806_123916: warm start without nonlinear term
+20250806_123916: warm start + linear transform + linear term
 
 batch_size: 10
 mini_batch_size: 2
 test_n: 1
 iteration_n: 10
-20250806_130050: warm start with nonlinear term
-20250806_150625: cold start with nonlinear term
+20250806_130050: warm start + linear transform + linear term + nonlinear term
+20250806_150625: cold start + linear transform + linear term + nonlinear term
 

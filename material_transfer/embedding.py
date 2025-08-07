@@ -1,6 +1,7 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import numpy as np
@@ -9,47 +10,75 @@ from botorch.utils.multi_objective import is_non_dominated
 from evaluation import bo_evaluation
 import pandas as pd
 import torch
-from models import MultiTaskGP_model
-from optimization import qLogEHVI
+from models import SingleTaskGP_model
 from models import black_box
 import matplotlib.pyplot as plt
 from warm_start import run_bo, generate_initial_data
 
 
+def attach_feature_vector(x: torch, v: list):
+    """
+    Attach feature vectors to x
+    :param x: input set, shape (n_samples, n_features)
+    :param v: feature vectors, shape (1, n_embedding_features)
+    :return: augmented set, shape (n_samples, n_features + n_embedding_features)
+    """
+    if not torch.is_tensor(v):
+        v = torch.tensor(v, dtype=torch.double, device=x.device)
+
+    v = v.repeat(x.shape[0], 1)
+    x_aug = torch.cat((x, v), dim=1)
+    return x_aug
+
+
 def main():
     # ---------- 0. Initialization  ---------- #
+    method = "embedding"
+    torch.set_default_dtype(torch.float64)
+    torch.manual_seed(42)  # Fixed random seed to reproduce results (Default: negative)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Using device:", device)
     # 0.1 Set constance and Hyper parameters
     d = 5
-    bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)  # [0,1]^d
+    bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)  # bounds = [0,1]^d
     # 0.2 Get true pareto frontier
-    X_ref, Y_ref = generate_initial_data(bounds, 1000, d, device=device)  # [1000, M]
+    X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
+    # ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
+    # ref_point = [-0.5319,  0.2925]  # nonlinear
+    ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
-    X_old, Y_old = generate_initial_data(bounds, 100, d, device=device)
-    X_new_init, Y_new_init = generate_initial_data(bounds, 20, d, device=device)
-
+    X_old, Y_old = generate_initial_data(1, bounds, 100, d, device)
+    X_old = attach_feature_vector(X_old, [1, 0])
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
+    v_new = [0.6, 10.8]
+    X_new_init = attach_feature_vector(X_new_init, v_new)
+    bounds = torch.cat((bounds, torch.tensor([v_new]).repeat(2, 1)), dim=1)
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 10
+    batch_size = 2
     mini_batch_size = 2
-    test_iter = 10  # Number of testing
-    n_iter = 20  # Number of iterations
-    # Log matrix initialize (test_iter × n_iter)
+    test_iter = 1  # Number of testing
+    n_iter = 1  # Number of iterations
+    # Log matrix initialization (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
     igd_history = np.zeros((test_iter, n_iter))  # log of inverted generational distance
     spacing_history = np.zeros((test_iter, n_iter))  # log of spacing_history
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
+    X_log = torch.empty((0, 7)).to(device)
+    Y_log = torch.empty((0, 2)).to(device)
     for j in range(test_iter):
         X_new = X_new_init
         Y_new = Y_new_init
         print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-            model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
-            ref_point = qLogEHVI.get_ref_point(Y_new, 0.1)  # set reference point
-            Y_bo = torch.cat((Y_old, Y_new), dim=0).to(device)  # merge training set
+            X_embedding = torch.cat((X_old, X_new), dim=0)
+            Y_embedding = torch.cat((Y_old, Y_new), dim=0)
+            model = SingleTaskGP_model.build_model(X_embedding, Y_embedding)  # build GP model
+            Y_bo = Y_embedding  # merge training set
             X_next = run_bo(  # run BO
                 model=model,
                 bounds=bounds,
@@ -59,13 +88,14 @@ def main():
                 mini_batch_size=mini_batch_size,
                 device=device
             )
-            Y_next = black_box.transfer_model_2(X_next, d)
+            Y_next = black_box.transfer_model_2(X_next[:, 0:5], d)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
             # print("Size of raw candidates: {}".format(Y_next.shape))
             # Filter and get pareto solves
             pareto_mask = is_non_dominated(Y_new)
             pareto_y = Y_new[pareto_mask]
+            pareto_y = torch.unique(pareto_y, dim=0)
             print("pareto_y: {}".format(pareto_y.detach()))
             # Evaluation
             hv = bo_evaluation.get_hyper_volume(pareto_y, ref_point)
@@ -79,6 +109,9 @@ def main():
             igd_history[j, i] = igd
             spacing_history[j, i] = spacing
             cardinality_history[j, i] = cardinality
+
+        X_log = torch.cat((X_log, X_new), dim=0)
+        Y_log = torch.cat((Y_log, Y_new), dim=0)
 
     hv_mean = hv_history.mean(axis=0)  # HV_mean for all test
     gd_mean = gd_history.mean(axis=0)
@@ -105,26 +138,29 @@ def main():
     ax1.set_xlabel("Iteration")
     ax1.set_ylabel("Metric Value")
     ax1.grid(True)
+    ax1.set_ylim(0, 10)
     # right Y axis
     ax2 = ax1.twinx()
     ax2.plot(iterations, cardinality_mean, marker='x', color='black', label='Cardinality')
     ax2.set_ylabel("Cardinality", color='black')
     ax2.tick_params(axis='y', labelcolor='black')
+    ax2.set_ylim(0, 30)
     # merge legend
     lines_1, labels_1 = ax1.get_legend_handles_labels()
     lines_2, labels_2 = ax2.get_legend_handles_labels()
     ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
-    plt.title("Warm Start BO")
+    plt.title("{} BO\n"
+              "batch_size = {} mini_batch_size = {} test_iter = {} n_iter = {}"
+              .format(method, batch_size, mini_batch_size, test_iter, n_iter))
     plt.tight_layout()
     # save_dir = '/content/drive/MyDrive'
     save_dir = './result'
-    pd.DataFrame(X_new.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_warm_X.csv", index=False)
-    pd.DataFrame(Y_new.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_warm_Y.csv", index=False)
-    metrics_df.to_csv(f"{save_dir}/{timestamp}_warm_value.csv", index=False)
-    plt.savefig(f"{save_dir}/{timestamp}_warm_fig.png")
+    pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_X.csv", index=False)
+    pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
+    metrics_df.to_csv(f"{save_dir}/{timestamp}_{method}_value.csv", index=False)
+    plt.savefig(f"{save_dir}/{timestamp}_{method}_fig.png")
     plt.close()
 
 
 if __name__ == "__main__":
     main()
-

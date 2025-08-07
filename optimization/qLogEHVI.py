@@ -35,7 +35,7 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
         acq_function=acq_func,
         bounds=bounds,
         q=batch_size,
-        num_restarts=num_restarts,  # Repeat optimization times with different starting points (to prevent local optimum)
+        num_restarts=num_restarts,  # Repeat optimization times with different starting points (prevent local optimum)
         raw_samples=raw_samples,  # Initial random sample number (used to find initial value)
         return_best_only=True,  # Only return optimal solution
     )

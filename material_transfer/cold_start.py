@@ -10,7 +10,6 @@ from evaluation import bo_evaluation
 import pandas as pd
 import torch
 from models import SingleTaskGP_model
-from optimization import qLogEHVI
 from models import black_box
 import matplotlib.pyplot as plt
 from warm_start import run_bo, generate_initial_data
@@ -37,10 +36,10 @@ def main():
     X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 2
-    mini_batch_size = 2
+    batch_size = 4
+    mini_batch_size = 4
     test_iter = 1  # Number of testing
-    n_iter = 10  # Number of iterations
+    n_iter = 20  # Number of iterations
     # Log matrix initialize (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
