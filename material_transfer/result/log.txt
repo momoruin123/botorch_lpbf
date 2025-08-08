@@ -4,18 +4,30 @@ batch_size = 4
 mini_batch_size = 4
 test_iter = 1  # Number of testing
 n_iter = 20  # Number of iterations
-20250807_105121: warm start + linear transform
- : cold start + linear transform???
-20250807_132051: embedding with 10 new samples
-embedding<warm
+20250807_130200: warm start with 5 samples
+20250807_105121: warm start with 20 samples
 
+20250807_132013: cold start with 0 samples
+20250807_125430: cold start with 5 samples
+20250807_122431: cold start with 20 samples
+
+20250807_122912: embedding with 0 samples
+20250807_125738: embedding with 5 samples
+20250807_124102: embedding with 10 samples
+20250807_120726: embedding with 20 samples
+embedding_0 < cold_20 < embedding_10 < warm_20 < embedding_20
+---------------------------------------------------------------
 batch_size = 10
 mini_batch_size = 5
 test_iter = 10  # Number of testing
 n_iter = 20  # Number of iterations
-20250807_110516: warm start + linear transform
-20250807_100559: cold start + linear transform
-warm < cold
+20250807_110516: warm start with 20 samples
+
+20250807_151805: cold start with 0
+20250807_100559: cold start with 20 samples
+
+20250807_143840: embedding with 20
+warm_20 < embedding_20 < cold_20
 ========================参考点选成了非线性点========================
 ========================linear transform + linear term========================
 batch_size: 10

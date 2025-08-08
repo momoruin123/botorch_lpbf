@@ -1,6 +1,8 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os
+import warnings
+warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import numpy as np
@@ -9,13 +11,93 @@ from botorch.utils.multi_objective import is_non_dominated
 from evaluation import bo_evaluation
 import pandas as pd
 import torch
+from torch import Tensor
 from models import SingleTaskGP_model
 from models import black_box
 import matplotlib.pyplot as plt
-from warm_start import run_bo, generate_initial_data
+from botorch.utils import draw_sobol_samples
+from optimization import qLogEHVI
+
+def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, device: torch.device) -> tuple[Tensor, Tensor]:
+    """
+    use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
+
+    Args:
+        model_opt (int) :choose model
+        bounds (torch.Tensor): shape [2, d]，Lower and upper
+        n_init (int): number of initial samples
+        d (int): number of input dimensions
+        device (torch.device): Device used for computation
+
+    Returns:
+        Tuple of tensors: (X_init, Y_init)
+    """
+    if n_init == 0:
+        sobol_x = torch.zeros((n_init, d), device=device)
+        y = torch.zeros((n_init, 2), device=device)
+        return sobol_x, y
+    sobol_x = draw_sobol_samples(bounds=bounds, n=n_init, q=1, seed=123).squeeze(1).to(device)
+    if model_opt == 1:
+        y = black_box.transfer_model_1(sobol_x, d)
+    elif model_opt == 2:
+        y = black_box.transfer_model_2(sobol_x, d)
+    else:
+        raise ValueError("model_opt must be 1 or 2")
+    return sobol_x, y
+
+
+def run_bo(
+        model,
+        bounds: torch.Tensor,
+        train_y: torch.Tensor,
+        ref_point: list,
+        batch_size: int,
+        mini_batch_size: int,
+        device: torch.device
+) -> torch.Tensor:
+    """
+    Run batch Bayesian Optimization using qLogEHVI.
+
+    Args:
+        model (ModelListGP): Trained multi-objective GP model.
+        bounds (torch.Tensor): Optimization variable bounds [2, d].
+        train_y (torch.Tensor): Training objectives, shape [N, 2].
+        ref_point (list): Reference point in objective space, e.g., [0.5, 0.5].
+        batch_size (int): Target number of new samples to generate.
+        mini_batch_size (int): BO internal batch size per iteration.
+        device (torch.device): Target device (CPU/GPU).
+
+    Returns:
+        torch.Tensor: New candidate points, shape [batch_size, d].
+    """
+    X_next_tensor = torch.empty((0, bounds.shape[1])).to(device)
+    iteration = 0
+
+    while X_next_tensor.shape[0] < batch_size:
+        X_candidates, acq_val = qLogEHVI.optimize_acq_fun(
+            model=model,
+            train_y=train_y,
+            bounds=bounds,
+            ref_point=ref_point,
+            batch_size=mini_batch_size,
+            num_restarts=10,
+            raw_samples=128,
+        )
+        X_next_tensor = torch.cat((X_next_tensor, X_candidates), dim=0)
+        iteration += 1
+        # print(f"[BO] Iter {iteration}: Added {X_candidates.shape[0]} → total {X_next_tensor.shape[0]}")
+    return X_next_tensor[:batch_size, :]
 
 
 def main():
+    # ---------- Config  ---------- #
+    # save_dir = '/content/drive/MyDrive'
+    save_dir = './result'
+    method = "cold start"
+    batch_size = 2
+    mini_batch_size = 2
+    test_iter = 1  # Number of testing
+    n_iter = 2  # Number of iterations
     # ---------- 0. Initialization  ---------- #
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(42)  # Fixed random seed to reproduce results (Default: negative)
@@ -33,13 +115,9 @@ def main():
     ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device)
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, 0, d, device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 4
-    mini_batch_size = 4
-    test_iter = 1  # Number of testing
-    n_iter = 20  # Number of iterations
     # Log matrix initialize (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
@@ -54,17 +132,20 @@ def main():
         print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-            model = SingleTaskGP_model.build_model(X_new, Y_new)  # build GP model
-            Y_bo = Y_new  # merge training set
-            X_next = run_bo(  # run BO
-                model=model,
-                bounds=bounds,
-                train_y=Y_bo,
-                ref_point=ref_point,
-                batch_size=batch_size,
-                mini_batch_size=mini_batch_size,
-                device=device
-            )
+            if X_new.nelement() == 0:
+                X_next, _ = generate_initial_data(2, bounds, batch_size, d, device)
+            else:
+                model = SingleTaskGP_model.build_model(X_new, Y_new)  # build GP model
+                Y_bo = Y_new  # merge training set
+                X_next = run_bo(  # run BO
+                    model=model,
+                    bounds=bounds,
+                    train_y=Y_bo,
+                    ref_point=ref_point,
+                    batch_size=batch_size,
+                    mini_batch_size=mini_batch_size,
+                    device=device
+                )
             Y_next = black_box.transfer_model_2(X_next, d)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
@@ -130,12 +211,10 @@ def main():
               "batch_size = {} mini_batch_size = {} test_iter = {} n_iter = {}".format(batch_size, mini_batch_size
                                                                                        , test_iter, n_iter))
     plt.tight_layout()
-    # save_dir = '/content/drive/MyDrive'
-    save_dir = './result'
-    pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_cold_X.csv", index=False)
-    pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_cold_Y.csv", index=False)
-    metrics_df.to_csv(f"{save_dir}/{timestamp}_cold_value.csv", index=False)
-    plt.savefig(f"{save_dir}/{timestamp}_cold_fig.png")
+    pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_X.csv", index=False)
+    pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
+    metrics_df.to_csv(f"{save_dir}/{timestamp}_{method}_value.csv", index=False)
+    plt.savefig(f"{save_dir}/{timestamp}_{method}_fig.png")
     plt.close()
 
 

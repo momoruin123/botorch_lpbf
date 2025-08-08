@@ -1,7 +1,8 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os
-
+import warnings
+warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import numpy as np
@@ -13,7 +14,7 @@ import torch
 from models import SingleTaskGP_model
 from models import black_box
 import matplotlib.pyplot as plt
-from warm_start import run_bo, generate_initial_data
+from cold_start import run_bo, generate_initial_data
 
 
 def attach_feature_vector(x: torch, v: list):
@@ -32,8 +33,15 @@ def attach_feature_vector(x: torch, v: list):
 
 
 def main():
-    # ---------- 0. Initialization  ---------- #
+    # ---------- Config  ---------- #
+    # save_dir = '/content/drive/MyDrive'
+    save_dir = './result'
     method = "embedding"
+    batch_size = 2
+    mini_batch_size = 2
+    test_iter = 1  # Number of testing
+    n_iter = 1  # Number of iterations
+    # ---------- 0. Initialization  ---------- #
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(42)  # Fixed random seed to reproduce results (Default: negative)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,12 +63,8 @@ def main():
     X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
     v_new = [0.6, 10.8]
     X_new_init = attach_feature_vector(X_new_init, v_new)
-    bounds = torch.cat((bounds, torch.tensor([v_new]).repeat(2, 1)), dim=1)
+    bounds = torch.cat((bounds, torch.tensor([v_new]).repeat(2, 1).to(device)), dim=1)
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
-    batch_size = 2
-    mini_batch_size = 2
-    test_iter = 1  # Number of testing
-    n_iter = 1  # Number of iterations
     # Log matrix initialization (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
@@ -153,8 +157,6 @@ def main():
               "batch_size = {} mini_batch_size = {} test_iter = {} n_iter = {}"
               .format(method, batch_size, mini_batch_size, test_iter, n_iter))
     plt.tight_layout()
-    # save_dir = '/content/drive/MyDrive'
-    save_dir = './result'
     pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_X.csv", index=False)
     pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
     metrics_df.to_csv(f"{save_dir}/{timestamp}_{method}_value.csv", index=False)
