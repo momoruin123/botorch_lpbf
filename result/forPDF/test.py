@@ -1,3 +1,6 @@
+"""
+用来从value.csv中提取数据并绘图
+"""
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 

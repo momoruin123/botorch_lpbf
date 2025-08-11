@@ -1,5 +1,4 @@
 import pandas as pd
-import torch
 
 
 def read_benchmark_test_data(

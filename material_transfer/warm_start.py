@@ -1,6 +1,9 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os, warnings
+
+from optimization import qLogEHVI
+
 warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 warnings.filterwarnings("ignore", message=".*torch.cuda.*DtypeTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -39,9 +42,9 @@ def main():
     X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
-    # ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
+    ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
     # ref_point = [-0.5319,  0.2925]  # nonlinear
-    ref_point = [10.6221, 11.1111]  # linear
+    # ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)

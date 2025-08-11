@@ -14,7 +14,7 @@ def transfer_model_1(x: Tensor, d) -> Tensor:
     return y
 
 
-def transfer_model_2(x: Tensor, d, is_nonlinear=False) -> Tensor:
+def transfer_model_2(x: Tensor, d, is_nonlinear=True) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()

@@ -5,7 +5,7 @@ from botorch.utils import draw_sobol_samples
 from optimization import qLogEHVI
 
 
-def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, device: torch.device) -> tuple[Tensor, Tensor]:
+def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, device: torch.device) -> tuple:
     """
     use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
 
@@ -24,6 +24,10 @@ def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, 
         y = torch.zeros((n_init, 2), device=device)
         return sobol_x, y
     sobol_x = draw_sobol_samples(bounds=bounds, n=n_init, q=1, seed=123).squeeze(1).to(device)
+    # for using
+    if model_opt == 0:
+        return sobol_x, None
+    # for evaluation
     if model_opt == 1:
         y = black_box.transfer_model_1(sobol_x, d)
     elif model_opt == 2:
