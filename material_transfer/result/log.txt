@@ -21,12 +21,15 @@ batch_size = 10
 mini_batch_size = 5
 test_iter = 10  # Number of testing
 n_iter = 20  # Number of iterations
+
+: warm start with 0 samples 来自1
 20250807_110516: warm start with 20 samples
 
-20250807_151805: cold start with 0
+20250807_151805: cold start with 0 samples
 20250807_100559: cold start with 20 samples
 
-20250807_143840: embedding with 20
+20250808_155039: embedding with 0 samples
+20250807_143840: embedding with 20 samples
 warm_20 < embedding_20 < cold_20
 ========================参考点选成了非线性点========================
 ========================linear transform + linear term========================
