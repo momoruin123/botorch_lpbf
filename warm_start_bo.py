@@ -36,7 +36,7 @@ batch_size = 1
 hv_history = []
 slack=[0.05, 0.5, 0.5]
 
-ref_point = qLogEHVI.get_ref_point(Y_train, slack)
+ref_point = qLogEHVI.set_ref_point(Y_train, slack)
 print("ref_point =", ref_point)
 hv = Hypervolume(ref_point=ref_point)
 

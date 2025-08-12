@@ -24,7 +24,7 @@ Y = Y[:, 1:]  # only need the last three columns
 print(X.shape, Y.shape)
 
 # ---------- 2. Bayesian Optimization  ---------- #
-ref_point = qLogEHVI.get_ref_point(Y, slack=0)
+ref_point = qLogEHVI.set_ref_point(Y, slack=0)
 batch_size = 20
 print(ref_point)
 

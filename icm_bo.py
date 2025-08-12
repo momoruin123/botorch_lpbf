@@ -36,7 +36,7 @@ hv_history = []
 slack = [0.02, 0.1, 0.3]
 input_dim = X_target.shape[1]  # M
 
-ref_point = qLogEHVI.get_ref_point(Y_target, slack)
+ref_point = qLogEHVI.set_ref_point(Y_target, slack)
 print("ref_point =", ref_point)
 hv = Hypervolume(ref_point=ref_point)
 

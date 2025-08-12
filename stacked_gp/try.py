@@ -217,7 +217,7 @@ def main():
         # -------------------- 4. Bayesian Optimization  -------------------- #
         model = StackedGPModel(gp_2, gp_2_surface)
         Y_bo = torch.cat((f_mecha, f_surface), dim=1)
-        ref_point = qLogEHVI.get_ref_point(Y_bo, 0.1)
+        ref_point = qLogEHVI.set_ref_point(Y_bo, 0.1)
         X_next = run_bo(
             model=model,
             bounds=bounds,
