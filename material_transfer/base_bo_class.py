@@ -1,12 +1,26 @@
 """
-A general BO class.
-A simple examples sequence for using:
-    define class BaseBoClass
-        -read_train_data
-        -set_bounds
-        -set_ref_point
-        -build_model
-        -run_bo
+A general Bayesian Optimization (BO) class.
+
+Two typical usage sequences:
+
+- When you have initial samples:
+    1) Instantiate `BaseBoClass`.
+    2) Call `read_train_data`.
+    3) Call `set_bounds`.
+    4) Call `set_ref_point`.
+    5) Call `build_model`.
+    6) Call `run_bo`.
+
+- When you don't have initial samples:
+    1) Instantiate `BaseBoClass`.
+    2) Call `set_bounds`.
+    3) Call `run_start_sampling` to get random samples.
+
+:note: Ensure that all objective functions are optimized in the direction of maximization
+
+:author: Maoyurun Mao
+:affiliation: Institut für Strahlwerkzeuge (IFSW), University of Stuttgart
+:date: 2025-08-12
 """
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -42,7 +56,7 @@ class BaseBO:
         # BO config
         # bounds: 2 x d tensor: [[l1,...,ld],[u1,...,ud]]
         self.bounds = torch.empty(2, input_dim, device=self.device)
-        self.batch_size = 2
+        self.batch_size = 1
         self.mini_batch_size = self.batch_size
         self.ref_point = None  # reference point
 
@@ -63,6 +77,14 @@ class BaseBO:
         # self.Y_log = torch.empty((0, self.objective_dim), device=self.device)
 
     # ---------- data ops ----------
+    def add_data(self, X_new, Y_new):
+        """Append new observations"""
+        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
+        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
+        assert X_new.shape[0] == Y_new.shape[0], "X/Y batch size mismatch"
+        self.X = torch.cat([self.X, X_new], dim=0)
+        self.Y = torch.cat([self.Y, Y_new], dim=0)
+
     def read_train_data(self, file_path: str, x_cols=None, y_cols=None):
         """
         Read training data from .csv. If no column name is given, the first column is taken by default:
@@ -83,18 +105,11 @@ class BaseBO:
         Y_np = df[list(y_cols)].to_numpy()
         X = torch.as_tensor(X_np, dtype=self.X.dtype, device=self.device)
         Y = torch.as_tensor(Y_np, dtype=self.Y.dtype, device=self.device)
-        self.X = X
-        self.Y = Y
+        self.add_data(X, Y)
         return X, Y
-    def add_data(self, X_new, Y_new):
-        """Append new observations"""
-        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
-        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
-        assert X_new.shape[0] == Y_new.shape[0], "X/Y batch size mismatch"
-        self.X = torch.cat([self.X, X_new], dim=0)
-        self.Y = torch.cat([self.Y, Y_new], dim=0)
 
     def clear_data(self):
+        """reset X and Y to empty tensor"""
         self.X = torch.empty(0, self.input_dim, dtype=self.X.dtype, device=self.device)
         self.Y = torch.empty(0, self.objective_dim, dtype=self.Y.dtype, device=self.device)
 
@@ -142,27 +157,28 @@ class BaseBO:
 
     # ---------- model ----------
     def build_model(self, **kwargs):
-        """build/return GP model. Make sure to call when XY is not empty"""
+        """build and return GP model. Make sure to call when XY is not empty"""
         assert self.X.numel() > 0 and self.Y.numel() > 0, "X/Y are empty; add_data() before build_model()."
         model = SingleTaskGP_model.build_model(self.X, self.Y)
         self.model = model.to(self.device)
         return self.model
 
     # ---------- BO process ----------
+    def run_start_sampling(self):
+        X_next, _ = generate_initial_data(0, self.bounds, self.batch_size, self.input_dim, self.device)
+        print(X_next)
+        return X_next
+
     def run_bo(self):
-        if self.X.nelement() == 0:
-            # if no samples for new task, then use random sampling.
-            X_next, _ = generate_initial_data(0, self.bounds, self.batch_size, self.input_dim, self.device)
-        else:
-            self.build_model()
-            X_next = run_bo(  # run BO
-                model=self.model,
-                bounds=self.bounds,
-                train_y=self.Y,
-                ref_point=self.ref_point,
-                batch_size=self.batch_size,
-                mini_batch_size=self.mini_batch_size,
-                device=self.device
-            )
+        self.build_model()
+        X_next = run_bo(  # run BO
+            model=self.model,
+            bounds=self.bounds,
+            train_y=self.Y,
+            ref_point=self.ref_point,
+            batch_size=self.batch_size,
+            mini_batch_size=self.mini_batch_size,
+            device=self.device
+        )
         print(X_next)
         return X_next

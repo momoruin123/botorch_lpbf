@@ -9,15 +9,18 @@ def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, 
     """
     use Sobol sequence to generate initial samples in given bounds, and use black_box func to get targets.
 
-    Args:
-        model_opt (int) :choose models
-        bounds (torch.Tensor): shape [2, d]，Lower and upper
-        n_init (int): number of initial samples
-        d (int): number of input dimensions
-        device (torch.device): Device used for computation
+    model options:
+        - 0: Provides random sampling for practical optimization.
+        - 1: "zdt1" black-box model for 2-task BO.
+        - 2: A linear transformation model of "zdt1" with formula:
+           f₂ = 0.6 * f₁ + 10.8 + noise.
 
-    Returns:
-        Tuple of tensors: (X_init, Y_init)
+    :param model_opt: choose models
+    :param bounds: shape [2, d]，Lower and upper
+    :param n_init: number of initial samples
+    :param d: number of input dimensions
+    :param device: Device used for computation
+    :return Tuple of tensors: (X_init, Y_init)
     """
     if n_init == 0:
         sobol_x = torch.zeros((n_init, d), device=device)
@@ -61,7 +64,7 @@ def run_bo(
     Returns:
         torch.Tensor: New candidate points, shape [batch_size, d].
     """
-    X_next_tensor = torch.empty((0, bounds.shape[1])).to(device)
+    X_next_tensor = torch.empty((0, bounds.shape[1]),device=device)
     iteration = 0
 
     while X_next_tensor.shape[0] < batch_size:

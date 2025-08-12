@@ -14,6 +14,7 @@
       <list>
         <option value="$MODULE_DIR$/optimization" />
         <option value="$MODULE_DIR$/models" />
+        <option value="$MODULE_DIR$/evaluation" />
       </list>
     </option>
   </component>

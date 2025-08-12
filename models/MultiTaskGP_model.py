@@ -22,8 +22,6 @@ def build_model(x_old, y_old, x_new, y_new):
     """
     input_dim = x_old.shape[1]
     target_dim = y_new.shape[1]
-    task_dim = 1  # task ID dimension
-    total_input_dim = input_dim + task_dim
 
     # Create a MultiTaskGP for each  task
     models = []
@@ -38,7 +36,7 @@ def build_model(x_old, y_old, x_new, y_new):
             train_Y=y_all,
             task_feature=-1,
             output_tasks=[1],  # output task_1
-            input_transform=Normalize(d=total_input_dim),
+            input_transform=Normalize(d=input_dim+1, indices=list(range(input_dim))),
             outcome_transform=Standardize(m=1)
         )
         models.append(model)

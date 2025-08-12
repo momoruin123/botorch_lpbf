@@ -79,11 +79,10 @@ def main():
                 )
             else:
                 model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
-                Y_bo = torch.cat((Y_old, Y_new), dim=0).to(device)  # merge training set
                 X_next = run_bo(  # run BO
                     model=model,
                     bounds=bounds,
-                    train_y=Y_bo,
+                    train_y=Y_new,
                     ref_point=ref_point,
                     batch_size=batch_size,
                     mini_batch_size=mini_batch_size,
