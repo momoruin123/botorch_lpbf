@@ -56,7 +56,7 @@ class BaseBO:
         # BO config
         # bounds: 2 x d tensor: [[l1,...,ld],[u1,...,ud]]
         self.bounds = torch.empty(2, input_dim, device=self.device)
-        self.batch_size = 1
+        self.batch_size = 2
         self.mini_batch_size = self.batch_size
         self.ref_point = None  # reference point
 
@@ -77,15 +77,7 @@ class BaseBO:
         # self.Y_log = torch.empty((0, self.objective_dim), device=self.device)
 
     # ---------- data ops ----------
-    def add_data(self, X_new, Y_new):
-        """Append new observations"""
-        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
-        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
-        assert X_new.shape[0] == Y_new.shape[0], "X/Y batch size mismatch"
-        self.X = torch.cat([self.X, X_new], dim=0)
-        self.Y = torch.cat([self.Y, Y_new], dim=0)
-
-    def read_train_data(self, file_path: str, x_cols=None, y_cols=None):
+    def read_data(self, file_path: str, x_cols=None, y_cols=None):
         """
         Read training data from .csv. If no column name is given, the first column is taken by default:
             input_dim column as X,
@@ -105,8 +97,15 @@ class BaseBO:
         Y_np = df[list(y_cols)].to_numpy()
         X = torch.as_tensor(X_np, dtype=self.X.dtype, device=self.device)
         Y = torch.as_tensor(Y_np, dtype=self.Y.dtype, device=self.device)
-        self.add_data(X, Y)
         return X, Y
+
+    def add_data(self, X_new, Y_new):
+        """Append new observations"""
+        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
+        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
+        assert X_new.shape[0] == Y_new.shape[0], "X/Y batch size mismatch"
+        self.X = torch.cat([self.X, X_new], dim=0)
+        self.Y = torch.cat([self.Y, Y_new], dim=0)
 
     def clear_data(self):
         """reset X and Y to empty tensor"""
@@ -136,12 +135,12 @@ class BaseBO:
         :return: A reference point (shape: M).
         """
         if isinstance(slack, list):
-            slack_tensor = torch.tensor(slack, dtype=self.Y.dtype, device=self.Y.device)
+            slack_tensor = torch.tensor(slack, dtype=self.Y.dtype, device=self.device)
         else:
             slack_tensor = torch.full_like(self.Y[0], fill_value=slack)
 
         ref_point = self.Y.min(dim=0).values - slack_tensor
-        ref_point = ref_point.to(self.Y.device)
+        ref_point = ref_point.to(self.device)
         self.ref_point = ref_point
         return ref_point
 

@@ -41,13 +41,14 @@ def main():
     X_ref, Y_ref = generate_initial_data(2, bounds, 1000, d, device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
+    true_pf_x = X_ref[mask_ref]
     ref_point = qLogEHVI.set_ref_point(Y_ref, 0.1)  # set reference point
     # ref_point = [-0.5319,  0.2925]  # nonlinear
     # ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, 0, d, device=device)
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
     # Log matrix initialization (test_iter × n_iter)

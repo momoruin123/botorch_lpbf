@@ -18,9 +18,7 @@ class WarmStartBO(BaseBO):
         # source task X/Y init
         self.X_src = torch.empty((0, input_dim), device=self.device)
         self.Y_src = torch.empty((0, objective_dim), device=self.device)
-        # target task X/Y init
-        self.X_trg = torch.empty((0, input_dim), device=self.device)
-        self.Y_trg = torch.empty((0, objective_dim), device=self.device)
+
         self.warm_start_mode = mode
 
     def add_source_data(self, X_src, Y_src):
@@ -35,14 +33,12 @@ class WarmStartBO(BaseBO):
         """build and return GP model with old task data. Make sure to call when X_src and Y_src is not empty"""
         assert self.X_src.numel() > 0 and self.Y_src.numel() > 0, \
             "X_src/Y_src are empty; add_data() before build_warm_start_model()."
-        if self.X_trg.nelement() == 0:
+        if self.X.nelement() == 0:
             # if no samples for target task, then use GP model of old task to sample.
             model = SingleTaskGP_model.build_model(self.X_src, self.Y_src)  # build GP model
-            self.Y = self.Y_trg
         else:
             # else use MultiTaskGP to learn two tasks at the same time and the relationship between them.
-            model = MultiTaskGP_model.build_model(self.X_src, self.Y_src, self.X_trg, self.Y_trg)  # build GP model
-            self.Y = torch.cat((self.Y_src, self.Y_trg), dim=0)  # merge training set
+            model = MultiTaskGP_model.build_model(self.X_src, self.Y_src, self.X, self.Y)  # build GP model
 
         self.model = model
         return model
