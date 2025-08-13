@@ -47,7 +47,7 @@ def main():
 
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
     # Log matrix initialization (test_iter × n_iter)
