@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 from datetime import datetime
 
 
-def print_multi_task_value_matrix(
+def print_multi_task_value_metric(
         batch_size, mini_batch_size, test_iter, n_iter, n_init_samples,  # parameters of BO
         hv_mean, gd_mean, igd_mean, spacing_mean, cardinality_mean,  # evaluation value of BO
         method: str,  # BO method in use

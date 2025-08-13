@@ -17,7 +17,7 @@ from botorch.utils.multi_objective import is_non_dominated
 import pandas as pd
 import torch
 from evaluation import bo_evaluation
-from evaluation.printer import print_multi_task_value_matrix
+from evaluation.printer import print_multi_task_value_metric
 from models import SingleTaskGP_model
 from models import black_box
 from utils import generate_initial_data, run_multitask_bo
@@ -27,7 +27,7 @@ def main():
     # ---------- Config  ---------- #
     # save_dir = '/content/drive/MyDrive'
     save_dir = './result'
-    method = "cold_start"
+    method = "cold start"
     batch_size = 2
     mini_batch_size = 2
     test_iter = 1  # Number of testing
@@ -132,7 +132,7 @@ def main():
     pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
     metrics_df.to_csv(f"{save_dir}/{timestamp}_{method}_value.csv", index=False)
     # print figure
-    print_multi_task_value_matrix(
+    print_multi_task_value_metric(
         batch_size, mini_batch_size, test_iter, n_iter, n_init_samples,  # parameters of BO
         hv_mean, gd_mean, igd_mean, spacing_mean, cardinality_mean,  # evaluation value of BO
         method=method,

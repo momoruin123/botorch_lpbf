@@ -31,8 +31,8 @@ class EmbeddingStartBO(BaseBO):
         self.v_src = v_src
         self.v_trg = v_trg
         # augment X
-        self.X_aug = torch.empty((0, input_dim+len(f_v)), device=self.device)
-        self.X_src_aug = torch.empty((0, objective_dim+len(f_v)), device=self.device)
+        self.X_aug = torch.empty((0, input_dim+len(self.v_trg)), device=self.device)
+        self.X_src_aug = torch.empty((0, objective_dim+len(self.v_src)), device=self.device)
 
         if objective_dim == 1:
             self._is_single_task = True
@@ -51,19 +51,22 @@ class EmbeddingStartBO(BaseBO):
         """build and return GP model with old task data. Make sure to call when X_src and Y_src is not empty"""
         assert self.X_src.numel() > 0 and self.Y_src.numel() > 0, \
             "X_src/Y_src are empty; add_data() before run_bo()."
-        if self.X_aug.nelement() == 0:
-            # if no samples for target task, then use GP model of old task to sample.
-            model = SingleTaskGP_model.build_model(self.X_src, self.Y_src)  # build GP model
-        else:
-            # else use MultiTaskGP to learn two tasks at the same time and the relationship between them.
-            model = MultiTaskGP_model.build_model(self.X_src, self.Y_src, self.X, self.Y)  # build GP model
+        X_embedding = torch.cat((self.X_src_aug, self.X_aug), dim=0)
+        Y_embedding = torch.cat((self.Y_src, self.Y), dim=0)
+        model = SingleTaskGP_model.build_model(X_embedding, Y_embedding)  # build GP model
+        # if self.X_aug.nelement() == 0:
+        #     # if no samples for target task, then use GP model of old task to sample.
+        #     model = SingleTaskGP_model.build_model(self.X_src, self.Y_src)  # build GP model
+        # else:
+        #     # else use MultiTaskGP to learn two tasks at the same time and the relationship between them.
+        #     model = MultiTaskGP_model.build_model(self.X_src, self.Y_src, self.X, self.Y)  # build GP model
 
         self.model = model
         return model
 
     def run_bo(self):
+        self._attach_feature_vector()
         self.build_model()
-
         # set y for BO based on whether there is sample
         if self.X.nelement() == 0:  # if not, use source task samples to do BO
             y_bo = self.Y_src
@@ -90,25 +93,28 @@ class EmbeddingStartBO(BaseBO):
                 mini_batch_size=self.mini_batch_size,
                 device=self.device
             )
-        print(X_next)
+        print(X_next[:, 0:self.input_dim])
         return X_next
 
-    def attach_feature_vector(self, v_src: list, v_trg: list):
+    def _attach_feature_vector(self):
         """
         Attach feature vectors to x
         :param v_src: feature vectors of source task, shape (1, n_embedding_features)
         :param v_trg: feature vectors of target task, shape (1, n_embedding_features)
         :return: augmented set, shape (n_samples, n_features + n_embedding_features)
         """
-        if not torch.is_tensor(v_src):
-            v_src = torch.tensor(v_src, device=self.device)
-        if not torch.is_tensor(v_src):
-            v_trg = torch.tensor(v_trg, device=self.device)
+        if not torch.is_tensor(self.v_src):
+            v_src = torch.tensor(self.v_src, device=self.device)
+        if not torch.is_tensor(self.v_src):
+            v_trg = torch.tensor(self.v_trg, device=self.device)
+
+        bounds_ad = torch.tensor(self.v_trg, device=self.device).repeat(2, 1)
+        self.bounds = torch.cat((self.bounds, bounds_ad), dim=1)
 
         # augment X and X_src
-        v_src = v_src.repeat(self.X_src.shape[0], 1)
-        v_trg = v_trg.repeat(self.X.shape[0], 1)
-        self.X_src_aug = torch.cat((self.X_src, v_src), dim=1)
-        self.X_aug = torch.cat((self.X, v_trg), dim=1)
+        v_src_aug = v_src.repeat(self.X_src.shape[0], 1)
+        v_trg_aug = v_trg.repeat(self.X.shape[0], 1)
+        self.X_src_aug = torch.cat((self.X_src, v_src_aug), dim=1)
+        self.X_aug = torch.cat((self.X, v_trg_aug), dim=1)
 
-        return self.X_aug, self.X_src_aug
+        return self.X_src_aug, self.X_aug

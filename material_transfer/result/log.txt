@@ -1,3 +1,5 @@
+20250813_143225: embedding with multi-task BO
+
 ========================linear transform========================
 ======== y = 0.6 * y + 10.8 + 0.05 * torch.randn_like(y)========
 batch_size = 4
