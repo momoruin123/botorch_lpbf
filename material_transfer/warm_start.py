@@ -14,7 +14,7 @@ from evaluation import bo_evaluation
 from evaluation.printer import print_multi_task_value_matrix
 from models import MultiTaskGP_model, SingleTaskGP_model
 from models import black_box
-from utils import generate_initial_data, run_bo
+from utils import generate_initial_data, run_multitask_bo
 
 
 def main():
@@ -68,7 +68,7 @@ def main():
                 # if no samples for new task, then use GP model of old task.
                 model = SingleTaskGP_model.build_model(X_old, Y_old)  # build GP model
                 Y_bo = Y_old  # merge training set
-                X_next = run_bo(  # run BO
+                X_next = run_multitask_bo(  # run BO
                     model=model,
                     bounds=bounds,
                     train_y=Y_bo,
@@ -79,7 +79,7 @@ def main():
                 )
             else:
                 model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
-                X_next = run_bo(  # run BO
+                X_next = run_multitask_bo(  # run BO
                     model=model,
                     bounds=bounds,
                     train_y=Y_new,

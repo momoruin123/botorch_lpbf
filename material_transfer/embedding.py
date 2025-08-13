@@ -1,4 +1,5 @@
 import sys, os, warnings
+
 warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 warnings.filterwarnings("ignore", message=".*torch.cuda.*DtypeTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -11,7 +12,8 @@ from evaluation import bo_evaluation
 from evaluation.printer import print_multi_task_value_matrix
 from models import SingleTaskGP_model
 from models import black_box
-from utils import generate_initial_data, run_bo
+from utils import generate_initial_data, run_multitask_bo
+
 
 def attach_feature_vector(x: torch, v: list):
     """
@@ -81,7 +83,7 @@ def main():
             Y_embedding = torch.cat((Y_old, Y_new), dim=0)
             model = SingleTaskGP_model.build_model(X_embedding, Y_embedding)  # build GP model
             Y_bo = Y_embedding  # merge training set
-            X_next = run_bo(  # run BO
+            X_next = run_multitask_bo(  # run BO
                 model=model,
                 bounds=bounds,
                 train_y=Y_bo,

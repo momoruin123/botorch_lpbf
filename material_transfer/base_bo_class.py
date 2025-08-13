@@ -29,7 +29,7 @@ import torch
 import numpy as np
 import pandas as pd
 
-from material_transfer.utils import generate_initial_data, run_bo
+from material_transfer.utils import generate_initial_data, run_multitask_bo
 from models import SingleTaskGP_model
 
 
@@ -77,28 +77,6 @@ class BaseBO:
         # self.Y_log = torch.empty((0, self.objective_dim), device=self.device)
 
     # ---------- data ops ----------
-    def read_data(self, file_path: str, x_cols=None, y_cols=None):
-        """
-        Read training data from .csv. If no column name is given, the first column is taken by default:
-            input_dim column as X,
-            objective_dim column as Y.
-        :param file_path: file path
-        :param x_cols: column names of training data
-        :param y_cols: column names of training data
-        :return: X, Y
-        """
-        df = pd.read_csv(file_path)
-
-        if x_cols is None:
-            x_cols = df.columns[:self.input_dim]
-        if y_cols is None:
-            y_cols = df.columns[self.input_dim:self.input_dim + self.objective_dim]
-        X_np = df[list(x_cols)].to_numpy()
-        Y_np = df[list(y_cols)].to_numpy()
-        X = torch.as_tensor(X_np, dtype=self.X.dtype, device=self.device)
-        Y = torch.as_tensor(Y_np, dtype=self.Y.dtype, device=self.device)
-        return X, Y
-
     def add_data(self, X_new, Y_new):
         """Append new observations"""
         X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
@@ -113,6 +91,10 @@ class BaseBO:
         self.Y = torch.empty(0, self.objective_dim, dtype=self.Y.dtype, device=self.device)
 
     # ---------- set ----------
+    def set_batch_size(self, batch_size, mini_batch_size):
+        self.batch_size = batch_size
+        self.mini_batch_size = mini_batch_size
+
     def set_bounds(self, lower, upper):
         """lower/upper: array-like length d"""
         lower = torch.as_tensor(lower, dtype=self.X.dtype, device=self.device).view(-1)
@@ -170,7 +152,7 @@ class BaseBO:
 
     def run_bo(self):
         self.build_model()
-        X_next = run_bo(  # run BO
+        X_next = run_multitask_bo(  # run BO
             model=self.model,
             bounds=self.bounds,
             train_y=self.Y,

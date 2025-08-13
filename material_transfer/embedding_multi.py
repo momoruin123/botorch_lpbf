@@ -1,13 +1,5 @@
-"""
-cold_start.py
+import sys, os, warnings
 
-This module implements the **cold start strategy** for multi-objective Bayesian Optimization
-in the context of LPBF (Laser Powder Bed Fusion) process optimization or benchmark testing.
-
-It initializes the BO process without using any prior data from source tasks,
-typically by generating samples using a Sobol sequence for the first batch and evaluating them via a black-box function.
-"""
-import os, sys, warnings
 warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 warnings.filterwarnings("ignore", message=".*torch.cuda.*DtypeTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -18,20 +10,35 @@ import pandas as pd
 import torch
 from evaluation import bo_evaluation
 from evaluation.printer import print_multi_task_value_matrix
-from models import SingleTaskGP_model
+from models import SingleTaskGP_model, MultiTaskGP_model
 from models import black_box
 from utils import generate_initial_data, run_multitask_bo
+
+
+def attach_feature_vector(x: torch, v: list):
+    """
+    Attach feature vectors to x
+    :param x: input set, shape (n_samples, n_features)
+    :param v: feature vectors, shape (1, n_embedding_features)
+    :return: augmented set, shape (n_samples, n_features + n_embedding_features)
+    """
+    if not torch.is_tensor(v):
+        v = torch.tensor(v, dtype=torch.double, device=x.device)
+
+    v = v.repeat(x.shape[0], 1)
+    x_aug = torch.cat((x, v), dim=1)
+    return x_aug
 
 
 def main():
     # ---------- Config  ---------- #
     # save_dir = '/content/drive/MyDrive'
     save_dir = './result'
-    method = "cold_start"
+    method = "embedding"
     batch_size = 2
     mini_batch_size = 2
     test_iter = 1  # Number of testing
-    n_iter = 4  # Number of iterations
+    n_iter = 2  # Number of iterations
     n_init_samples = 0  # Number of initial samples of new task
 
     # ---------- 0. Initialization  ---------- #
@@ -51,8 +58,12 @@ def main():
     ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device)
-
+    X_old, Y_old = generate_initial_data(1, bounds, 100, d, device)
+    X_old = attach_feature_vector(X_old, [1, 0])
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
+    v_new = [0.6, 10.8]
+    X_new_init = attach_feature_vector(X_new_init, v_new)
+    bounds = torch.cat((bounds, torch.tensor([v_new]).repeat(2, 1).to(device)), dim=1)
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
     # Log matrix initialization (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
@@ -60,7 +71,7 @@ def main():
     igd_history = np.zeros((test_iter, n_iter))  # log of inverted generational distance
     spacing_history = np.zeros((test_iter, n_iter))  # log of spacing_history
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
-    X_log = torch.empty((0, 5)).to(device)
+    X_log = torch.empty((0, 7)).to(device)
     Y_log = torch.empty((0, 2)).to(device)
     for j in range(test_iter):
         X_new = X_new_init
@@ -69,21 +80,30 @@ def main():
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
             if X_new.nelement() == 0:
-                # if no samples for new task, then use random sampling.
-                X_next, _ = generate_initial_data(2, bounds, batch_size, d, device)
-            else:
-                model = SingleTaskGP_model.build_model(X_new, Y_new)  # build GP model
-                Y_bo = Y_new  # merge training set
+                # if no samples for new task, then use GP model of old task.
+                model = SingleTaskGP_model.build_model(X_old, Y_old)  # build GP model
                 X_next = run_multitask_bo(  # run BO
                     model=model,
                     bounds=bounds,
-                    train_y=Y_bo,
+                    train_y=Y_old,
                     ref_point=ref_point,
                     batch_size=batch_size,
                     mini_batch_size=mini_batch_size,
                     device=device
                 )
-            Y_next = black_box.transfer_model_2(X_next, d)
+            else:
+                model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
+                X_next = run_multitask_bo(  # run BO
+                    model=model,
+                    bounds=bounds,
+                    train_y=Y_new,
+                    ref_point=ref_point,
+                    batch_size=batch_size,
+                    mini_batch_size=mini_batch_size,
+                    device=device
+                )
+
+            Y_next = black_box.transfer_model_2(X_next[:, 0:5], d)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
             # print("Size of raw candidates: {}".format(Y_next.shape))
@@ -121,12 +141,6 @@ def main():
         "igd": igd_mean,
         "spacing": spacing_mean,
         "cardinality": cardinality_mean,
-        "batch_size": batch_size,
-        "mini_batch_size": mini_batch_size,
-        "test_iter": test_iter,
-        "n_iter": n_iter,
-        "n_init_samples": n_init_samples,
-        "method": method
     })
     pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_X.csv", index=False)
     pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
