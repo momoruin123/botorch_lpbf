@@ -17,7 +17,7 @@ print(wsbo.X.shape)
 print(wsbo.Y.shape)
 
 wsbo.set_ref_point(2)
-wsbo.get_ref_point()
+print(wsbo.get_ref_point())
 
 wsbo.run_bo()
 # ====test base bo

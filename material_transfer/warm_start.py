@@ -1,8 +1,6 @@
 # import os
 # os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os, warnings
-from optimization import qLogEHVI
-
 warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 warnings.filterwarnings("ignore", message=".*torch.cuda.*DtypeTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -11,6 +9,7 @@ from datetime import datetime
 from botorch.utils.multi_objective import is_non_dominated
 import pandas as pd
 import torch
+from optimization import qLogEHVI
 from evaluation import bo_evaluation
 from evaluation.printer import print_multi_task_value_matrix
 from models import MultiTaskGP_model, SingleTaskGP_model
