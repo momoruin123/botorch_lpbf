@@ -3,7 +3,7 @@ A BO class with embedding-based representations
 
 :author: Maoyurun Mao
 :affiliation: Institut für Strahlwerkzeuge (IFSW), University of Stuttgart
-:date: 2025-08-13
+:date: 2025-08-18
 """
 import torch
 
