@@ -72,11 +72,11 @@ def main():
     # source task
     X_old_1, Y_old_1 = generate_initial_data(1, bounds, 100, d, device)
     X_old_1 = attach_feature_vector(X_old_1, [1, 0])
-    X_old_2, Y_old_2 = generate_initial_data(1, bounds, 100, d, device)
+    X_old_2, Y_old_2 = generate_initial_data(3, bounds, 100, d, device)
     X_old_2 = attach_feature_vector(X_old_2, [1.2, 13.8])
-    X_old_3, Y_old_3 = generate_initial_data(1, bounds, 100, d, device)
+    X_old_3, Y_old_3 = generate_initial_data(4, bounds, 100, d, device)
     X_old_3 = attach_feature_vector(X_old_3, [0.95, 6.5])
-    X_old_4, Y_old_4 = generate_initial_data(1, bounds, 100, d, device)
+    X_old_4, Y_old_4 = generate_initial_data(5, bounds, 100, d, device)
     X_old_4 = attach_feature_vector(X_old_4, [0.85, 2.5])
 
     # merge source task tensor

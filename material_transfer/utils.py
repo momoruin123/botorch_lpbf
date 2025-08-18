@@ -60,6 +60,12 @@ def generate_initial_data(model_opt, bounds: torch.Tensor, n_init: int, d: int, 
         y = black_box.transfer_model_1(sobol_x, d)
     elif model_opt == 2:
         y = black_box.transfer_model_2(sobol_x, d)
+    elif model_opt == 3:
+        y = black_box.transfer_model_3(sobol_x, d)
+    elif model_opt == 4:
+        y = black_box.transfer_model_4(sobol_x, d)
+    elif model_opt == 5:
+        y = black_box.transfer_model_5(sobol_x, d)
     else:
         raise ValueError("model_opt must be 1 or 2")
     return sobol_x, y
