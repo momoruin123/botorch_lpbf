@@ -150,3 +150,18 @@ def run_multitask_bo(
         iteration += 1
         # print(f"[BO] Iter {iteration}: Added {X_candidates.shape[0]} → total {X_next_tensor.shape[0]}")
     return X_next_tensor[:batch_size, :]
+
+
+def attach_feature_vector(x: torch, v: list):
+    """
+    Attach feature vectors to x
+    :param x: input set, shape (n_samples, n_features)
+    :param v: feature vectors, shape (1, n_embedding_features)
+    :return: augmented set, shape (n_samples, n_features + n_embedding_features)
+    """
+    if not torch.is_tensor(v):
+        v = torch.tensor(v, dtype=torch.double, device=x.device)
+
+    v = v.repeat(x.shape[0], 1)
+    x_aug = torch.cat((x, v), dim=1)
+    return x_aug

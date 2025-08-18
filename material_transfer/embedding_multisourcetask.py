@@ -83,7 +83,7 @@ def main():
     X_old = torch.cat((X_old_1, X_old_2, X_old_3, X_old_4), dim=0)
     Y_old = torch.cat((Y_old_1, Y_old_2, Y_old_3, Y_old_4), dim=0)
     # target task
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
     v_new = [0.6, 10.8]
     X_new_init = attach_feature_vector(X_new_init, v_new)
 

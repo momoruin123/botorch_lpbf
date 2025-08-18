@@ -60,7 +60,7 @@ def main():
     # ---------- 1. Initial Samples  ---------- #
     X_old, Y_old = generate_initial_data(1, bounds, 100, d, device)
     X_old = attach_feature_vector(X_old, [1, 0])
-    X_new_init, Y_new_init = generate_initial_data(2, bounds, 20, d, device=device)
+    X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
     v_new = [0.6, 10.8]
     X_new_init = attach_feature_vector(X_new_init, v_new)
     bounds = torch.cat((bounds, torch.tensor([v_new]).repeat(2, 1).to(device)), dim=1)

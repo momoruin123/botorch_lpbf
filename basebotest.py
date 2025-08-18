@@ -28,18 +28,18 @@ v_src = [1, 0]
 v_trg = [0.6, 10.8]
 ref_point = [10.6221, 11.1111]
 
-embo = embedding_bo_class.EmbeddingStartBO(5, 2, v_src, v_trg)
+embo = embedding_bo_class.EmbeddingBO(5, 2, 2)
 
 # wsbo.batch_size = 10
 # wsbo.mini_batch_size = 5
 
-embo.set_bounds([0, 0, 0, 0, 0], [1, 1, 1, 1, 1])
+embo.set_bounds([0, 0, 0, 0, 0, 0.6, 10.8], [1, 1, 1, 1, 1, 0.6, 10.8])
 
-embo.add_source_data(X_src, Y_src)
-print(embo.X_src.shape)
-print(embo.Y_src.shape)
+embo.add_augment_data(X_src, Y_src, v_src)
+print(embo.X.shape)
+print(embo.Y.shape)
 
-embo.add_data(X, Y)
+embo.add_augment_data(X, Y, v_trg)
 print(embo.X.shape)
 print(embo.Y.shape)
 

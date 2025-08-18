@@ -100,7 +100,7 @@ class BaseBO:
         lower = torch.as_tensor(lower, dtype=self.X.dtype, device=self.device).view(-1)
         upper = torch.as_tensor(upper, dtype=self.X.dtype, device=self.device).view(-1)
         assert lower.numel() == self.input_dim and upper.numel() == self.input_dim, "bounds dim mismatch"
-        assert torch.all(upper > lower), "upper must be > lower"
+        assert torch.all(upper > lower), "upper must be >= lower"
         self.bounds = torch.stack([lower, upper], dim=0)
 
     # def set_ref_point(self, ref_point):

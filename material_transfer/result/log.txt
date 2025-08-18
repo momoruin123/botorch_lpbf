@@ -13,10 +13,13 @@ n_iter = 20  # Number of iterations
 20250807_125430: cold start with 5 samples
 20250807_122431: cold start with 20 samples
 
-20250807_122912: embedding with 0 samples
-20250807_125738: embedding with 5 samples
+20250807_122912: embedding with 0  samples
+20250807_125738: embedding with 5  samples
 20250807_124102: embedding with 10 samples
 20250807_120726: embedding with 20 samples
+20250818_103032: embedding with 0  samples, 4 different source task
+20250818_094236: embedding with 20 samples, 4 different source task
+
 embedding_0 < cold_20 < embedding_10 < warm_20 < embedding_20
 ---------------------------------------------------------------
 batch_size = 10
