@@ -3,9 +3,10 @@ from botorch.optim import optimize_acqf
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.utils.multi_objective.box_decompositions import NondominatedPartitioning
 import torch
-from models.stacked_gp import StackedGPModel
 
-def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None, num_restarts=10, raw_samples=128):
+
+def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack=None, num_restarts=10,
+                     raw_samples=128):
     """
     Build a qLogExpectedHypervolumeImprovement acquisition function for multi-objective BO.
 
@@ -42,7 +43,7 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
     return candidate, acq_value  # suggested samples and average acq_value
 
 
-def set_ref_point(train_y, slack):
+def get_ref_point(train_y, slack):
     """
     Find a reference point for hyper-volume optimization.
 

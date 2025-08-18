@@ -79,8 +79,8 @@ class BaseBO:
     # ---------- data ops ----------
     def add_data(self, X_new, Y_new):
         """Append new observations"""
-        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
-        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
+        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device)
+        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device)
         assert X_new.shape[0] == Y_new.shape[0], "X/Y batch size mismatch"
         self.X = torch.cat([self.X, X_new], dim=0)
         self.Y = torch.cat([self.Y, Y_new], dim=0)

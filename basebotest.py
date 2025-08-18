@@ -18,35 +18,93 @@ def cost_func(y):
     return f
 
 
-# ==== test embedding start bo
-X_src, Y_src = read_data(5, 2, './data/source_task_data.csv')
-# Y_src = cost_func(Y_src)
-X, Y = read_data(5, 2, './data/target_task_data.csv')
-# Y = cost_func(Y)
-
+# ==== cycle embedding tast
+# read data
+X_src, Y_src = read_data(5, 2, 'data/source_task_data.csv')
+Y_src = cost_func(Y_src)
+X, Y = read_data(5, 2, 'data/target_task_data.csv')
+Y = cost_func(Y)
 v_src = [1, 0]
 v_trg = [0.6, 10.8]
-ref_point = [10.6221, 11.1111]
 
-embo = embedding_bo_class.EmbeddingBO(5, 2, 2)
+# test parameters
+test_iter = 1
+n_iter = 20
+batch_size = 10
+minibatch_size = batch_size
 
-# wsbo.batch_size = 10
-# wsbo.mini_batch_size = 5
+# init log
+bsf_history = np.zeros((test_iter, n_iter))
+b_history = np.zeros((test_iter, n_iter))
 
-embo.set_bounds([0, 0, 0, 0, 0, 0.6, 10.8], [1, 1, 1, 1, 1, 0.6, 10.8])
+# start cycle
+for j in range(test_iter):
+    embo = embedding_bo_class.EmbeddingBO(5, 1, 2)
+    embo.set_bounds([0, 0, 0, 0, 0, 0.6, 10.8], [1, 1, 1, 1, 1, 0.6, 10.8])
+    embo.add_augment_data(X_src, Y_src, v_src)
+    # embo.add_augment_data(X, Y, v_trg)
+    embo.set_batch_size(batch_size, minibatch_size)
 
-embo.add_augment_data(X_src, Y_src, v_src)
-print(embo.X.shape)
-print(embo.Y.shape)
+    print(f"\n========= Test {j + 1}/{test_iter} =========")
+    for i in range(n_iter):
+        print(f"\n========= Iteration {i + 1}/{n_iter} =========")
+        X_next = embo.run_bo()
+        Y_next = black_box.transfer_model_2(X_next[:, 0:5], 5)
+        Y_next = cost_func(Y_next)
 
-embo.add_augment_data(X, Y, v_trg)
-print(embo.X.shape)
-print(embo.Y.shape)
+        embo.add_data(X_next, Y_next)
+        b = max(Y_next)
+        bsf = max(embo.Y[Y_src.shape[0]:, :])
+        b_history[j, i] = b
+        bsf_history[j, i] = bsf
 
-embo.ref_point = ref_point
-print(embo.get_ref_point())
+b_mean = b_history.mean(axis=0)
+bsf_mean = bsf_history.mean(axis=0)  # HV_mean for all test
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+iterations = list(range(1, len(bsf_mean) + 1))
+plt.figure(figsize=(8, 6))
+# left Y axis
+ax1 = plt.gca()
+ax1.plot(iterations, bsf_mean, marker='o', label='best_so_far')
+ax1.plot(iterations, b_mean, marker='x', label='best_of_each_batch')
+ax1.set_xlabel("Iteration")
+ax1.set_ylabel("Metric Value (normalized)")
+ax1.legend(loc='upper left')
+ax1.grid(True)
+plt.title(f"batch_size={batch_size} n_iter={n_iter}")
+plt.tight_layout()
+plt.savefig(f"metrics_value_v4_{timestamp}.png")
+plt.close()
 
-embo.run_bo()
+# # ==== test embedding start bo
+# X_src, Y_src = read_data(5, 2, './data/source_task_data.csv')
+# # Y_src = cost_func(Y_src)
+# X, Y = read_data(5, 2, './data/target_task_data.csv')
+# # Y = cost_func(Y)
+#
+# v_src = [1, 0]
+# v_trg = [0.6, 10.8]
+# ref_point = [10.6221, 11.1111]
+#
+# embo = embedding_bo_class.EmbeddingBO(5, 2, 2)
+#
+# # wsbo.batch_size = 10
+# # wsbo.mini_batch_size = 5
+#
+# embo.set_bounds([0, 0, 0, 0, 0, 0.6, 10.8], [1, 1, 1, 1, 1, 0.6, 10.8])
+#
+# embo.add_augment_data(X_src, Y_src, v_src)
+# print(embo.X.shape)
+# print(embo.Y.shape)
+#
+# embo.add_augment_data(X, Y, v_trg)
+# print(embo.X.shape)
+# print(embo.Y.shape)
+#
+# embo.ref_point = ref_point
+# print(embo.get_ref_point())
+#
+# embo.run_bo()
 
 # # ==== cycle warm start tast
 # # read data

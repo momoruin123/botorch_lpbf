@@ -52,8 +52,8 @@ class EmbeddingBO(BaseBO):
 
     def add_augment_data(self, X_new, Y_new, v):
         """Append new observations"""
-        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device).view(-1, self.input_dim)
-        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device).view(-1, self.objective_dim)
+        X_new = torch.as_tensor(X_new, dtype=self.X.dtype, device=self.device)
+        Y_new = torch.as_tensor(Y_new, dtype=self.Y.dtype, device=self.device)
         assert X_new.shape[0] == Y_new.shape[0], "X and Y batch size(Number of lines) mismatch"
         X_aug = attach_feature_vector(X_new, v)
         self.X = torch.cat([self.X, X_aug], dim=0)
