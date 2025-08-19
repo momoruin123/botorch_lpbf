@@ -1,3 +1,5 @@
+20250818_185732: nonlinear item
+
 20250813_143225: embedding with multi-task BO
 
 ========================linear transform========================
