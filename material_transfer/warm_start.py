@@ -41,7 +41,7 @@ def main():
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
     true_pf_x = X_ref[mask_ref]
-    ref_point = qLogEHVI.set_ref_point(Y_ref, 0.1)  # set reference point
+    ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
     # ref_point = [-0.5319,  0.2925]  # nonlinear
     # ref_point = [10.6221, 11.1111]  # linear
 
