@@ -46,7 +46,12 @@ def main():
     # ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
-    X_old, Y_old = generate_initial_data(1, bounds, 100, d, device=device)
+    X_old_1, Y_old_1 = generate_initial_data(1, bounds, 100, d, device)
+    X_old_2, Y_old_2 = generate_initial_data(3, bounds, 100, d, device)
+    X_old_3, Y_old_3 = generate_initial_data(4, bounds, 100, d, device)
+    X_old_4, Y_old_4 = generate_initial_data(5, bounds, 100, d, device)
+    X_old = torch.cat((X_old_1, X_old_2, X_old_3, X_old_4), dim=0)
+    Y_old = torch.cat((Y_old_1, Y_old_2, Y_old_3, Y_old_4), dim=0)
     X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
