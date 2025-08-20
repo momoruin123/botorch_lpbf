@@ -1,7 +1,8 @@
-20250818_185732: nonlinear item
 
-20250813_143225: embedding with multi-task BO
-
+========================nonlinear transform========================
+20250818_185732: embedding with 4 source task BO
+20250819_114653: cold start
+20250819_120401: warm start with 4 source task BO
 ========================linear transform========================
 ======== y = 0.6 * y + 10.8 + 0.05 * torch.randn_like(y)========
 batch_size = 4

@@ -14,7 +14,7 @@ def transfer_model_1(x: Tensor, d) -> Tensor:
     return y
 
 
-def transfer_model_2(x: Tensor, d, is_nonlinear=True) -> Tensor:
+def transfer_model_2(x: Tensor, d, is_nonlinear=False) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -33,7 +33,7 @@ def transfer_model_2(x: Tensor, d, is_nonlinear=True) -> Tensor:
     return y
 
 
-def transfer_model_3(x: Tensor, d, is_nonlinear=True) -> Tensor:
+def transfer_model_3(x: Tensor, d, is_nonlinear=False) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -52,7 +52,7 @@ def transfer_model_3(x: Tensor, d, is_nonlinear=True) -> Tensor:
     return y
 
 
-def transfer_model_4(x: Tensor, d, is_nonlinear=True) -> Tensor:
+def transfer_model_4(x: Tensor, d, is_nonlinear=False) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -71,7 +71,7 @@ def transfer_model_4(x: Tensor, d, is_nonlinear=True) -> Tensor:
     return y
 
 
-def transfer_model_5(x: Tensor, d, is_nonlinear=True) -> Tensor:
+def transfer_model_5(x: Tensor, d, is_nonlinear=False) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()

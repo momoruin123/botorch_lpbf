@@ -130,6 +130,12 @@ def main():
         "igd": igd_mean,
         "spacing": spacing_mean,
         "cardinality": cardinality_mean,
+        "batch_size": batch_size,
+        "mini_batch_size": mini_batch_size,
+        "test_iter": test_iter,
+        "n_iter": n_iter,
+        "n_init_samples": n_init_samples,
+        "method": method
     })
     pd.DataFrame(X_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_X.csv", index=False)
     pd.DataFrame(Y_log.cpu().numpy()).to_csv(f"{save_dir}/{timestamp}_{method}_Y.csv", index=False)
