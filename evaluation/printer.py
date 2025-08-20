@@ -59,7 +59,7 @@ def print_multi_task_value_metric(
     # Merge legend
     lines_1, labels_1 = ax1.get_legend_handles_labels()
     lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='lower right')
+    ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left')
     plt.title("{} BO\n"
               "batch_size = {} mini_batch_size = {} test_iter = {} n_iter = {}\n"
               "n_init_samples = {}".format(method,batch_size, mini_batch_size, test_iter, n_iter, n_init_samples))

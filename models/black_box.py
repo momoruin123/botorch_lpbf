@@ -14,7 +14,7 @@ def transfer_model_1(x: Tensor, d) -> Tensor:
     return y
 
 
-def transfer_model_2(x: Tensor, d, is_nonlinear=False) -> Tensor:
+def transfer_model_2(x: Tensor, d, is_nonlinear=True) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -33,7 +33,7 @@ def transfer_model_2(x: Tensor, d, is_nonlinear=False) -> Tensor:
     return y
 
 
-def transfer_model_3(x: Tensor, d, is_nonlinear=False) -> Tensor:
+def transfer_model_3(x: Tensor, d, is_nonlinear=True) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -46,13 +46,13 @@ def transfer_model_3(x: Tensor, d, is_nonlinear=False) -> Tensor:
         nonlinear_term = (0.2 * (2 * (x[:, 0] + 0.5 * x[:, 1] - 0.3 * x[:, 2]))
                           * 0.1 * (3 * x[:, 3]))
         nonlinear_term = nonlinear_term.unsqueeze(1).expand_as(y)
-        y = 0.6 * y + 10.8 * nonlinear_term + 0.05 * torch.randn_like(y)
+        y = 1.2 * y + 13.8 * nonlinear_term + 0.05 * torch.randn_like(y)
     else:
         y = 1.2 * y + 13.8 + 0.05 * torch.randn_like(y)
     return y
 
 
-def transfer_model_4(x: Tensor, d, is_nonlinear=False) -> Tensor:
+def transfer_model_4(x: Tensor, d, is_nonlinear=True) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -65,13 +65,13 @@ def transfer_model_4(x: Tensor, d, is_nonlinear=False) -> Tensor:
         nonlinear_term = (0.2 * (2 * (x[:, 0] + 0.5 * x[:, 1] - 0.3 * x[:, 2]))
                           * 0.1 * (3 * x[:, 3]))
         nonlinear_term = nonlinear_term.unsqueeze(1).expand_as(y)
-        y = 0.6 * y + 10.8 * nonlinear_term + 0.05 * torch.randn_like(y)
+        y = 0.95 * y + 6.5 * nonlinear_term + 0.05 * torch.randn_like(y)
     else:
         y = 0.95 * y + 6.5 + 0.05 * torch.randn_like(y)
     return y
 
 
-def transfer_model_5(x: Tensor, d, is_nonlinear=False) -> Tensor:
+def transfer_model_5(x: Tensor, d, is_nonlinear=True) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy
     x_np = x.detach().cpu().numpy()
@@ -84,7 +84,7 @@ def transfer_model_5(x: Tensor, d, is_nonlinear=False) -> Tensor:
         nonlinear_term = (0.2 * (2 * (x[:, 0] + 0.5 * x[:, 1] - 0.3 * x[:, 2]))
                           * 0.1 * (3 * x[:, 3]))
         nonlinear_term = nonlinear_term.unsqueeze(1).expand_as(y)
-        y = 0.6 * y + 10.8 * nonlinear_term + 0.05 * torch.randn_like(y)
+        y = 0.85 * y + 2.5 * nonlinear_term + 0.05 * torch.randn_like(y)
     else:
         y = 0.85 * y + 2.5 + 0.05 * torch.randn_like(y)
     return y
