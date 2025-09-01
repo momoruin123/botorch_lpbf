@@ -9,7 +9,7 @@ from evaluation.utils import read_benchmark_test_data
 from evaluation.printer import print_multi_task_value_metric
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-path = "20250820_115122_warm start_value.csv"
+path = "20250825_112236_cold start_value.csv"
 parameters, values = read_benchmark_test_data(path)
 batch_size, mini_batch_size, test_iter, n_iter, n_init_samples, method = parameters[0]
 hv_mean, gd_mean, igd_mean, spacing_mean, cardinality_mean = values.T
@@ -19,5 +19,5 @@ print_multi_task_value_metric(
     method=method,
     timestamp=timestamp,
     save_dir=".",
-    limit_axes=[[0,6], [0, 30]]
+    limit_axes=[[0, 17.5], [0, 30]]
 )
