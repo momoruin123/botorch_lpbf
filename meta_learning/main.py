@@ -1,0 +1,1 @@
+generate_initial_data(2,)

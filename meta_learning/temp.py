@@ -10,7 +10,7 @@ from utils import read_data           # 你的数据读取函数
 # --------------------------
 results_x, results_y = {}, {}
 
-num_targets = 1  # 单目标
+num_targets = 2  # 单目标
 ell_logs = [[] for _ in range(num_targets)]  # 每元素(5,)
 out_logs = [[] for _ in range(num_targets)]  # 标量
 noi_logs = [[] for _ in range(num_targets)]  # 标量
@@ -42,8 +42,8 @@ for task_id in source_tasks:
         model_iter = [model]
 
     with torch.no_grad():
-        logL_list, logS_list, logN_list = [], [], []
-        for m in model_iter:
+        for j in range(num_targets):
+            m = model_iter[j]
             # 取 lengthscale（RBF 的 base_kernel 上）
             if hasattr(m.covar_module, "base_kernel"):
                 length_scale = m.covar_module.base_kernel.lengthscale.reshape(-1)
@@ -65,14 +65,9 @@ for task_id in source_tasks:
             logS = outputscale.log().clone()        # 标量
             logN = noise.log().clone()              # 标量
 
-            logL_list.append(logL)
-            logS_list.append(logS)
-            logN_list.append(logN)
-
-    # 单目标场景：索引 0 即可
-    ell_logs[0].append(logL_list[0])
-    out_logs[0].append(logS_list[0])
-    noi_logs[0].append(logN_list[0])
+            ell_logs[j].append(logL)
+            out_logs[j].append(logS)
+            noi_logs[j].append(logN)
 
 # --------------------------
 # 3. 统计超参数的跨任务分布（均值/标准差）
@@ -103,5 +98,6 @@ for k in range(num_targets):
 
 # 简短展示
 print(f"Collected from {len(source_tasks)} tasks.")
-print("Target 0 stats:")
-print({k: v for k, v in stats_per_target[0].items()})
+for i in range(num_targets):
+    print(f"Target {i} stats:")
+    print({k: v for k, v in stats_per_target[i].items()})

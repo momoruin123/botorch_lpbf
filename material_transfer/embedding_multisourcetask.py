@@ -70,21 +70,26 @@ def main():
 
     # ---------- 1. Initial Samples  ---------- #
     # source task
+    v_1 = [ 3.1453, -3.9035,  5.6477,  2.8643,  0.9933, -2.0988, -2.5227, -3.3456]
+    v_2 = [ 2.7781, -3.5127,  5.1203,  2.6514,  0.8333, -1.8455, -2.3593, -3.1530]
+    v_3 = [ 1.6576, -1.7852,  2.4855,  1.9784,  0.3569, -0.9924, -1.3227, -1.9958]
+    v_4 = [ 2.7635, -3.7469,  5.2851,  2.6619,  1.0116, -2.0882, -2.4351, -3.1617]
+    v_5 = [ 2.2421, -2.6774,  3.8417,  2.2986,  0.7404, -1.6723, -1.9862, -2.6591]
     X_old_1, Y_old_1 = generate_initial_data(1, bounds, 100, d, device)
-    X_old_1 = attach_feature_vector(X_old_1, [1, 0])
+    X_old_1 = attach_feature_vector(X_old_1, v_1)
     X_old_2, Y_old_2 = generate_initial_data(3, bounds, 100, d, device)
-    X_old_2 = attach_feature_vector(X_old_2, [1.2, 13.8])
+    X_old_2 = attach_feature_vector(X_old_2, v_3)
     X_old_3, Y_old_3 = generate_initial_data(4, bounds, 100, d, device)
-    X_old_3 = attach_feature_vector(X_old_3, [0.95, 6.5])
+    X_old_3 = attach_feature_vector(X_old_3, v_4)
     X_old_4, Y_old_4 = generate_initial_data(5, bounds, 100, d, device)
-    X_old_4 = attach_feature_vector(X_old_4, [0.85, 2.5])
+    X_old_4 = attach_feature_vector(X_old_4, v_5)
 
     # merge source task tensor
     X_old = torch.cat((X_old_1, X_old_2, X_old_3, X_old_4), dim=0)
     Y_old = torch.cat((Y_old_1, Y_old_2, Y_old_3, Y_old_4), dim=0)
     # target task
     X_new_init, Y_new_init = generate_initial_data(2, bounds, n_init_samples, d, device=device)
-    v_new = [0.6, 10.8]
+    v_new = v_2
     X_new_init = attach_feature_vector(X_new_init, v_new)
 
     # set augment bound
