@@ -31,37 +31,13 @@ def read_data(x_dim, y_dim, file_path: str, x_cols=None, y_cols=None):
     return X, Y
 
 
-def read_data(x_dim, y_dim, file_path: str, x_cols=None, y_cols=None):
-    """
-    Read training data from .csv. If no column name is given, the first column is taken by default:
-        input_dim column as X,
-        objective_dim column as Y.
-    :param x_dim: dimension of X
-    :param y_dim: dimension of Y
-    :param file_path: file path
-    :param x_cols: column names of training data
-    :param y_cols: column names of training data
-    :return: X, Y
-    """
-    df = pd.read_csv(file_path)
-
-    if x_cols is None:
-        x_cols = df.columns[:x_dim]
-    if y_cols is None:
-        y_cols = df.columns[x_dim:x_dim + y_dim]
-    X_np = df[list(x_cols)].to_numpy()
-    Y_np = df[list(y_cols)].to_numpy()
-    X = torch.as_tensor(X_np)
-    Y = torch.as_tensor(Y_np)
-    return X, Y
-
-
 def generate_initial_data(M, bounds: torch.Tensor, n_init: int, device: torch.device) -> tuple:
 
     if n_init == 0:
         sobol_x = torch.zeros((n_init, 10), device=device)
+        S = torch.zeros((n_init, 2), device=device)
         Q = torch.zeros((n_init, 2), device=device)
-        return sobol_x, Q
+        return sobol_x, S, Q
 
     sobol_P = draw_sobol_samples(bounds=bounds, n=n_init, q=1, seed=123).squeeze(1).to(device)
     M = torch.tensor(M, device=device).repeat(n_init, 1)

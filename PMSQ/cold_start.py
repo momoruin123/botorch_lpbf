@@ -32,7 +32,7 @@ def main():
     batch_size = 2
     mini_batch_size = 2
     test_iter = 1  # Number of testing
-    n_iter = 4  # Number of iterations
+    n_iter = 2  # Number of iterations
     n_init_samples = 0  # Number of initial samples of new task
 
     # ---------- 0. Initialization  ---------- #
@@ -41,11 +41,13 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
     # 0.1 Set constance and Hyper parameters
-    d = 4
-    bounds = torch.stack([torch.zeros(d), torch.ones(d)]).to(device)  # bounds = [0,1]^d
-    # 0.2 Get true pareto frontier
     M_1 = [0.1857, 0.1165, 0.4962, 0.3767, 0.5447, 0.3063]
-    X_ref, talent, Y_ref = generate_initial_data(M_1, bounds, 1000, device)  # [1000, M]
+    P_d = 4
+    P_bounds = torch.stack([torch.zeros(P_d), torch.ones(P_d)]).to(device)  # bounds = [0,1]^d
+    M_bounds = torch.tensor(M_1,device=device).repeat(2,1)
+    bounds = torch.cat((M_bounds, P_bounds), dim=1)
+    # 0.2 Get true pareto frontier
+    X_ref, _, Y_ref = generate_initial_data(M_1, P_bounds, 1000, device)  # [1000, M]
     mask_ref = is_non_dominated(Y_ref)
     true_pf = Y_ref[mask_ref]  # [P, 2]
     ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
@@ -53,7 +55,7 @@ def main():
     # ref_point = [10.6221, 11.1111]  # linear
 
     # ---------- 1. Initial Samples  ---------- #
-    X_new_init, Y_new_init = generate_initial_data(M_1, bounds, n_init_samples, device)
+    X_new_init, _, Y_new_init = generate_initial_data(M_1, P_bounds, n_init_samples, device)
 
     # ---------- 2. Bayesian Optimization Main Loop ---------- #
     # Log matrix initialization (test_iter × n_iter)
@@ -62,7 +64,7 @@ def main():
     igd_history = np.zeros((test_iter, n_iter))  # log of inverted generational distance
     spacing_history = np.zeros((test_iter, n_iter))  # log of spacing_history
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
-    X_log = torch.empty((0, 5)).to(device)
+    X_log = torch.empty((0, 10)).to(device)
     Y_log = torch.empty((0, 2)).to(device)
     for j in range(test_iter):
         X_new = X_new_init
@@ -72,7 +74,7 @@ def main():
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
             if X_new.nelement() == 0:
                 # if no samples for new task, then use random sampling.
-                X_next, _ = generate_initial_data(M_1, bounds, batch_size, device)
+                X_next, _, _ = generate_initial_data(M_1, P_bounds, batch_size, device)
             else:
                 model = SingleTaskGP_model.build_model(X_new, Y_new)  # build GP model
                 Y_bo = Y_new  # merge training set
@@ -85,7 +87,7 @@ def main():
                     mini_batch_size=mini_batch_size,
                     device=device
                 )
-            _, _, Y_next = black_box.PMSQ_model(X_next)
+            _, Y_next = black_box.PMSQ_model(X_next)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
             # print("Size of raw candidates: {}".format(Y_next.shape))

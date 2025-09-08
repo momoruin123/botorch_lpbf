@@ -10,6 +10,9 @@ def PMSQ_model(x):
     P: 4
     M: 6
     x = M + P
+
+    S: 2
+    Q: 2
     """
     # step 1: M,P -> S
     problem = get_problem("zdt1", n_var=10)
@@ -24,7 +27,9 @@ def PMSQ_model(x):
     S = x[:, 6:7] * S + (x[:, 7:8] ** 2) * S + x[:, 8:9] * x[:, 9:10] * nonlinear_term
 
     # step 2: S -> Q
-    Q = (S[:, 0] * S[:, 1] + S[:, 0] + S[:, 0]**2 - S[:, 1] - S[:, 1]**3).unsqueeze(1)
+    Q1 = S[:, 0] * S[:, 1] + S[:, 0] + S[:, 0]**2 - S[:, 1] - S[:, 1]**3
+    Q2 = S[:, 0] * S[:, 1]**2 + S[:, 1] * S[:, 0]**2  # 注意去掉 unsqueeze
+    Q = torch.stack([Q1, Q2], dim=1)  # shape [batch_size, 2]
 
     return S, Q
 
