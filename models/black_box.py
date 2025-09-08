@@ -4,6 +4,31 @@ from torch import Tensor
 from pymoo.problems import get_problem
 
 
+def PMSQ_model(x):
+    """
+    Simplified LPBF black-box function: P, M -> S -> Q
+    P: 4
+    M: 6
+    x = M + P
+    """
+    # step 1: M,P -> S
+    problem = get_problem("zdt1", n_var=10)
+    x_np = x.detach().cpu().numpy()
+    S_np = problem.evaluate(x_np)
+    S = torch.tensor(S_np, dtype=x.dtype, device=x.device)
+
+    nonlinear_term = (0.2 * (2*(x[:, 0] + 0.5*x[:, 1] - 0.3*x[:, 2]))
+                      * 0.1 * (3 * x[:, 3]))
+    nonlinear_term = nonlinear_term.unsqueeze(1).expand_as(S)
+
+    S = x[:, 6:7] * S + (x[:, 7:8] ** 2) * S + x[:, 8:9] * x[:, 9:10] * nonlinear_term
+
+    # step 2: S -> Q
+    Q = (S[:, 0] * S[:, 1] + S[:, 0] + S[:, 0]**2 - S[:, 1] - S[:, 1]**3).unsqueeze(1)
+
+    return S, Q
+
+
 def transfer_model_1(x: Tensor, d) -> Tensor:
     problem = get_problem("zdt1", n_var=d)
     # to numpy

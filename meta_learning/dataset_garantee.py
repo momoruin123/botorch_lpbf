@@ -2,8 +2,8 @@ import torch
 
 from utils import generate_initial_data
 
-bounds = torch.tensor([[0., 0., 0., 0., 0.],
-                       [1., 1., 1., 1., 1.]], dtype=torch.double)
+bounds = torch.tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+                       [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]], dtype=torch.double)
 
 
 # generate_initial_data(1, bounds, 100, 5)
