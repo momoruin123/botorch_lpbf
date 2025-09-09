@@ -22,7 +22,7 @@ def optimize_acq_fun(model, train_y, bounds, batch_size=3, ref_point=None, slack
         raise ValueError("You must provide either a ref_point or a slack value to compute.")
     # If no ref_point
     if ref_point is None:
-        ref_point = set_ref_point(train_y, slack)
+        ref_point = get_ref_point(train_y, slack)
 
     # Determine whether it is a tensor
     if not torch.is_tensor(bounds):

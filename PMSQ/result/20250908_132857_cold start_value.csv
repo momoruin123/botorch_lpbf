@@ -1,3 +1,0 @@
-hyper_volume,gd,igd,spacing,cardinality,batch_size,mini_batch_size,test_iter,n_iter,n_init_samples,method
-2137.238731376542,0.3874441251263244,87.97357948914316,0.0,2.0,2,2,1,2,0,cold start
-7332.983442217634,0.4573428092352435,62.245870025088706,51.25223827260093,4.0,2,2,1,2,0,cold start

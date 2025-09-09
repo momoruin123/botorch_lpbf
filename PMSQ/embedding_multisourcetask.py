@@ -1,6 +1,7 @@
-# import os
-# os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 import sys, os, warnings
+
+from models.stacked_gp import StackedGPModel
+
 warnings.filterwarnings("ignore", message=".*torch.sparse.SparseTensor.*")
 warnings.filterwarnings("ignore", message=".*torch.cuda.*DtypeTensor.*")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -12,7 +13,7 @@ import torch
 from optimization import qLogEHVI
 from evaluation import bo_evaluation
 from evaluation.printer import print_multi_task_value_metric
-from models import MultiTaskGP_model, SingleTaskGP_model
+from models import SingleTaskGP_model
 from models import black_box
 from utils import generate_initial_data, run_multitask_bo
 
@@ -21,7 +22,7 @@ def main():
     # ---------- Config  ---------- #
     # save_dir = '/content/drive/MyDrive'
     save_dir = './result'
-    method = "warm start"
+    method = "embedding"
     batch_size = 2
     mini_batch_size = 2
     test_iter = 1  # Number of testing
@@ -33,35 +34,7 @@ def main():
     torch.manual_seed(42)  # Fixed random seed to reproduce results (Default: negative)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
-    # 0.1 Set constance and Hyper parameters
-    M_1 = [0.1857, 0.1165, 0.4962, 0.3767, 0.5447, 0.3063]
-    M_2 = [0.2286, 0.6339, 0.7022, 0.1193, 0.0664, 0.2909]
-    M_3 = [0.2895, 0.1941, 0.3508, 0.4594, 0.6814, 0.0996]
-    M_4 = [0.1732, 0.9416, 0.3361, 0.5468, 0.6304, 0.2437]
-    M_5 = [0.3344, 0.9545, 0.1776, 0.8872, 0.9008, 0.9709]
-    P_d = 4
-    P_bounds = torch.stack([torch.zeros(P_d), torch.ones(P_d)]).to(device)  # bounds = [0,1]^d
-    M_bounds = torch.tensor(M_1, device=device).repeat(2,1)
-    bounds = torch.cat((M_bounds, P_bounds), dim=1)
-    # 0.2 Get true pareto frontier
-    X_ref, _, Y_ref = generate_initial_data(M_1, P_bounds, 1000, device)  # [1000, M]
-    mask_ref = is_non_dominated(Y_ref)
-    true_pf = Y_ref[mask_ref]  # [P, 2]
-    true_pf_x = X_ref[mask_ref]
-    ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
-    # ref_point = [-0.5319,  0.2925]  # nonlinear
-    # ref_point = [10.6221, 11.1111]  # linear
 
-    # ---------- 1. Initial Samples  ---------- #
-    X_old_1, _, Y_old_1 = generate_initial_data(M_2, P_bounds, 100, device)
-    X_old_2, _, Y_old_2 = generate_initial_data(M_3, P_bounds, 100, device)
-    X_old_3, _, Y_old_3 = generate_initial_data(M_4, P_bounds, 100, device)
-    X_old_4, _, Y_old_4 = generate_initial_data(M_5, P_bounds, 100, device)
-    X_old = torch.cat((X_old_1, X_old_2, X_old_3, X_old_4), dim=0)
-    Y_old = torch.cat((Y_old_1, Y_old_2, Y_old_3, Y_old_4), dim=0)
-    X_new_init, _, Y_new_init = generate_initial_data(M_1, P_bounds, n_init_samples, device=device)
-
-    # ---------- 2. Bayesian Optimization Main Loop ---------- #
     # Log matrix initialization (test_iter × n_iter)
     hv_history = np.zeros((test_iter, n_iter))  # log of hyper volume
     gd_history = np.zeros((test_iter, n_iter))  # log of generational distance
@@ -70,39 +43,70 @@ def main():
     cardinality_history = np.zeros((test_iter, n_iter))  # log of cardinality_history
     X_log = torch.empty((0, 10)).to(device)
     Y_log = torch.empty((0, 2)).to(device)
+
+    # 0.1 Set constance and Hyper parameters
+    M_1 = [0.1857, 0.1165, 0.4962, 0.3767, 0.5447, 0.3063]
+    M_2 = [0.2286, 0.6339, 0.7022, 0.1193, 0.0664, 0.2909]
+    M_3 = [0.2895, 0.1941, 0.3508, 0.4594, 0.6814, 0.0996]
+    M_4 = [0.1732, 0.9416, 0.3361, 0.5468, 0.6304, 0.2437]
+    M_5 = [0.3344, 0.9545, 0.1776, 0.8872, 0.9008, 0.9709]
+
+    P_d = 4
+    P_bounds = torch.stack([torch.zeros(P_d), torch.ones(P_d)]).to(device)  # bounds = [0,1]^d
+    M_bounds = torch.tensor(M_1, device=device).repeat(2,1)
+    bounds = torch.cat((M_bounds, P_bounds), dim=1)
+
+    # 0.2 Get true pareto frontier
+    X_ref, S_ref, Y_ref = generate_initial_data(M_1, P_bounds, 1000, device)  # [1000, M]
+    mask_ref = is_non_dominated(Y_ref)
+    true_pf = Y_ref[mask_ref]  # [P, 2]
+    ref_point = qLogEHVI.get_ref_point(Y_ref, 0.1)  # set reference point
+
+    # ---------- 1. Initial Samples  ---------- #
+    X_old_1, S_old_1, Y_old_1 = generate_initial_data(M_2, P_bounds, 100, device)
+    X_old_2, S_old_2, Y_old_2 = generate_initial_data(M_3, P_bounds, 100, device)
+    X_old_3, S_old_3, Y_old_3 = generate_initial_data(M_4, P_bounds, 100, device)
+    X_old_4, S_old_4, Y_old_4 = generate_initial_data(M_5, P_bounds, 100, device)
+
+    X_old = torch.cat((X_old_1, X_old_2, X_old_3, X_old_4), dim=0)
+    Y_old = torch.cat((Y_old_1, Y_old_2, Y_old_3, Y_old_4), dim=0)
+    S_old = torch.cat((S_old_1, S_old_2, S_old_3, S_old_4), dim=0)
+    X_new_init, S_new_init, Y_new_init = generate_initial_data(M_1, P_bounds, n_init_samples, device=device)
+
+    # ---------- 2. Bayesian Optimization Main Loop ---------- #
+
     for j in range(test_iter):
         X_new = X_new_init
         Y_new = Y_new_init
+        S_new = S_new_init
         print(f"\n========= Test {j + 1}/{test_iter} =========")
         for i in range(n_iter):
             print(f"\n========= Iteration {i + 1}/{n_iter} =========")
-            if X_new.nelement() == 0:
-                # if no samples for new task, then use GP model of old task.
-                model = SingleTaskGP_model.build_model(X_old, Y_old)  # build GP model
-                Y_bo = Y_old  # merge training set
-                X_next = run_multitask_bo(  # run BO
-                    model=model,
-                    bounds=bounds,
-                    train_y=Y_bo,
-                    ref_point=ref_point,
-                    batch_size=batch_size,
-                    mini_batch_size=mini_batch_size,
-                    device=device
-                )
-            else:
-                model = MultiTaskGP_model.build_model(X_old, Y_old, X_new, Y_new)  # build GP model
-                X_next = run_multitask_bo(  # run BO
-                    model=model,
-                    bounds=bounds,
-                    train_y=Y_new,
-                    ref_point=ref_point,
-                    batch_size=batch_size,
-                    mini_batch_size=mini_batch_size,
-                    device=device
-                )
-            _, Y_next = black_box.PMSQ_model(X_next)
+            X = torch.cat((X_old, X_new), dim=0)
+            Y_stacked = torch.cat((Y_old, Y_new), dim=0)
+            S = torch.cat((S_old, S_new), dim=0)
+            model_1 = SingleTaskGP_model.build_model(X, S)
+
+            S_mean, S_var = SingleTaskGP_model.predict_stacked_gp(model_1, X)
+
+            # 2.2 Stacked GP 2
+            X_stacked = torch.cat((X, S_mean, S_var), dim=1)
+            model_2 = SingleTaskGP_model.build_model(X_stacked, Y_stacked)  # build GP model
+            model = StackedGPModel(model_1, model_2)
+
+            X_next = run_multitask_bo(  # run BO
+                model=model,
+                bounds=bounds,
+                train_y=Y_stacked,
+                ref_point=ref_point,
+                batch_size=batch_size,
+                mini_batch_size=mini_batch_size,
+                device=device
+            )
+            S_next, Y_next = black_box.PMSQ_model(X_next)
             X_new = torch.cat((X_new, X_next), dim=0)
             Y_new = torch.cat((Y_new, Y_next), dim=0)
+            S_new = torch.cat((S_new, S_next), dim=0)
             # print("Size of raw candidates: {}".format(Y_next.shape))
             # Filter and get pareto solves
             pareto_mask = is_non_dominated(Y_new)
@@ -155,7 +159,7 @@ def main():
         method=method,
         timestamp=timestamp,
         save_dir=save_dir,
-        # limit_axes=[[0, 6], [0, 30]]
+        # limit_axes=[[0, 10], [0, 30]]
     )
 
 

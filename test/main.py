@@ -1,5 +1,5 @@
-import torch
-print("cuda runtime:", torch.version.cuda)
-print("cuda available?", torch.cuda.is_available())
-if torch.cuda.is_available():
-    print("GPU:", torch.cuda.get_device_name(0))
+from pymoo.problems import get_problem
+
+problem = get_problem("zdt1", n_var=10)
+print(problem.xl)   # 下界
+print(problem.xu)   # 上界
